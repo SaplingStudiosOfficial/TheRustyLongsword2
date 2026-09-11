@@ -6,16 +6,19 @@
 <title>The Crybt — Player's Guide</title>
 <style>
   :root{
-    --ink:#f2e9d8;
-    --ink-dim:#c9bda6;
-    --ink-faint:#8d8574;
-    --bg:#16120f;
-    --bg-raised:#1f1a15;
-    --bg-sunken:#110e0b;
-    --line:#3a3129;
-    --amber:#e0a03c;
-    --amber-soft:#f0c67f;
-    --rose:#d9694f;
+    --ink:#f6f2ff;
+    --ink-dim:#cdbfe9;
+    --ink-faint:#9385b3;
+    --bg:#150c26;
+    --bg-raised:#1f1438;
+    --bg-sunken:#0b0618;
+    --line:#4a3a78;
+    --amber:#ffb020;
+    --amber-soft:#ffd35c;
+    --teal:#2fe6c4;
+    --rose:#ff5c72;
+    --violet:#b48cff;
+    --green:#4ee08a;
     --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
     --mono:"Cascadia Mono",Consolas,"SF Mono",monospace;
@@ -25,7 +28,9 @@
   body{
     margin:0;
     background:
-      radial-gradient(1100px 600px at 50% -10%, #2a211a 0%, transparent 65%),
+      radial-gradient(1000px 560px at 15% -10%, rgba(255,176,32,.14) 0%, transparent 60%),
+      radial-gradient(900px 620px at 100% 10%, rgba(47,230,196,.12) 0%, transparent 55%),
+      radial-gradient(1100px 700px at 50% 120%, rgba(180,140,255,.16) 0%, transparent 60%),
       var(--bg);
     color:var(--ink);
     font-family:var(--sans);
@@ -46,7 +51,7 @@
     text-transform:uppercase;
     letter-spacing:.32em;
     font-size:11px;
-    color:var(--amber);
+    color:var(--teal);
     margin:0 0 18px;
   }
   h1{
@@ -56,6 +61,12 @@
     margin:0 0 12px;
     font-weight:600;
     letter-spacing:-.01em;
+    color:var(--amber-soft);
+    background:linear-gradient(120deg, var(--amber-soft) 15%, var(--teal) 85%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    text-shadow:0 0 42px rgba(255,176,32,.25);
   }
   .sub{
     font-family:var(--serif);
@@ -94,8 +105,8 @@
     align-items:baseline;
     transition:background .15s,color .15s;
   }
-  nav.toc a:hover{background:#2a231c;color:var(--ink)}
-  nav.toc a b{color:var(--amber);font-variant-numeric:tabular-nums;font-weight:600}
+  nav.toc a:hover{background:#2c1f4d;color:var(--ink)}
+  nav.toc a b{color:var(--teal);font-variant-numeric:tabular-nums;font-weight:600}
 
   /* ---------- sections ---------- */
   section{margin:0 0 76px;scroll-margin-top:24px}
@@ -107,7 +118,7 @@
     letter-spacing:-.005em;
   }
   h2 .num{
-    color:var(--amber);
+    color:var(--teal);
     font-family:var(--sans);
     font-size:.72rem;
     letter-spacing:.22em;
@@ -138,23 +149,24 @@
   th,td{padding:11px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
   thead th{
     background:var(--bg-sunken);
-    color:var(--amber);
+    color:var(--teal);
     font-size:11px;
     text-transform:uppercase;
     letter-spacing:.16em;
     font-weight:600;
   }
   tbody tr:last-child td{border-bottom:0}
-  tbody tr:nth-child(even){background:rgba(255,255,255,.016)}
+  tbody tr:nth-child(even){background:rgba(180,140,255,.05)}
+  tbody tr:hover{background:rgba(47,230,196,.06)}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 
   /* ---------- key caps ---------- */
   kbd{
     font-family:var(--mono);
     font-size:12px;
-    background:#2c241d;
-    border:1px solid #4a3d31;
-    border-bottom-width:2px;
+    background:#2a1c4a;
+    border:1px solid var(--line);
+    border-bottom:2px solid var(--teal);
     border-radius:5px;
     padding:2px 7px;
     color:var(--amber-soft);
@@ -170,6 +182,8 @@
     border-radius:8px;
     padding:18px 20px;
   }
+  .card:nth-child(3n+2){border-left-color:var(--teal)}
+  .card:nth-child(3n+3){border-left-color:var(--violet)}
   .card h4{margin:0 0 6px;font-family:var(--serif);font-size:1.05rem;color:#fff;font-weight:600}
   .card p{margin:0;font-size:14px;color:var(--ink-dim)}
   .card .tag{
@@ -180,6 +194,7 @@
   .note{
     background:var(--bg-sunken);
     border:1px solid var(--line);
+    border-left:3px solid var(--teal);
     border-radius:8px;
     padding:16px 20px;
     margin:22px 0;
@@ -187,7 +202,9 @@
     color:var(--ink-dim);
   }
   .note b{color:var(--amber-soft)}
-  .note.warn{border-left:3px solid var(--rose)}
+  .note.good{border-left-color:var(--green)}
+  .note.good b{color:var(--green)}
+  .note.warn{border-left-color:var(--rose)}
   .note.warn b{color:var(--rose)}
 
   /* ---------- footer ---------- */
@@ -197,12 +214,13 @@
     color:var(--ink-faint);
     font-size:13px;
   }
-  a{color:var(--amber-soft)}
+  a{color:var(--teal)}
 
   @media print{
     body{background:#fff;color:#111}
     nav.toc{display:none}
     .card,.note,.tablewrap{border-color:#ccc}
+    h1{-webkit-text-fill-color:initial;background:none;text-shadow:none}
     h1,h2,h3,strong,.card h4{color:#000}
   }
 </style>
@@ -281,7 +299,7 @@
     <li><strong>Resolve.</strong> Hit <strong>End Encounter</strong>. Damage is the monster's attack power minus your total score, never below zero.</li>
   </ol>
 
-  <div class="note"><b>Zero damage kills.</b> If your score matches or beats the monster's attack power, you take nothing and the monster goes to your Graveyard, where it becomes a future Hero and end-of-crawl money. Falling short is not a loss, only a partial one: every point you scored is a point of damage you did not take.</div>
+  <div class="note good"><b>Zero damage kills.</b> If your score matches or beats the monster's attack power, you take nothing and the monster goes to your Graveyard, where it becomes a future Hero and end-of-crawl money. Falling short is not a loss, only a partial one: every point you scored is a point of damage you did not take.</div>
 </section>
 
 <!-- ================= 04 ================= -->
