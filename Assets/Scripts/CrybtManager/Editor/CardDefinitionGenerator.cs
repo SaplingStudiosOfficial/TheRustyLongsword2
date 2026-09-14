@@ -96,8 +96,8 @@ public static class CardDefinitionGenerator
             // READ THE PREFAB'S BAKED DATA
             // =================================================
 
-            int rank = card.EditorRawRank;
-            int suit = card.EditorRawSuit;
+            CardRank rank = card.EditorRawRank;
+            CardSuit suit = card.EditorRawSuit;
 
             Sprite face = FindFace(prefab);
 
@@ -110,10 +110,16 @@ public static class CardDefinitionGenerator
             // If they do not, the prefab is already
             // inconsistent and the generator should say so
             // rather than silently pick one.
+            //
+            // Face cards legitimately differ - a King is rank
+            // 13 and value 10 - so they are exempt.
 
             int rawValue = card.EditorRawValue;
 
-            if (rawValue != rank)
+            bool faceCard =
+                rank >= CardConstants.LowestFaceRank;
+
+            if (!faceCard && rawValue != (int)rank)
             {
                 Debug.LogWarning(
                     "[Crybt] "

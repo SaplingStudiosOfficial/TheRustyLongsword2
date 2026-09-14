@@ -422,7 +422,7 @@ public static class CrybtScoring
             return false;
         }
 
-        int rank = cards[0].Rank;
+        CardRank rank = cards[0].Rank;
 
         for (int i = 1;
             i < cards.Count;
@@ -453,6 +453,11 @@ public static class CrybtScoring
             return false;
         }
 
+        // A run is the one rule that needs rank ARITHMETIC
+        // rather than equality, so the enum is unwrapped here
+        // and nowhere else. The underlying values are the real
+        // card ranks (Ace 1 .. King 13), so ordering and
+        // adjacency mean what they look like.
         List<int> ranks =
             new List<int>(cards.Count);
 
@@ -460,7 +465,7 @@ public static class CrybtScoring
             i < cards.Count;
             i++)
         {
-            ranks.Add(cards[i].Rank);
+            ranks.Add((int)cards[i].Rank);
         }
 
         ranks.Sort();
@@ -492,7 +497,7 @@ public static class CrybtScoring
             return false;
         }
 
-        int suit = cards[0].Suit;
+        CardSuit suit = cards[0].Suit;
 
         for (int i = 1;
             i < cards.Count;

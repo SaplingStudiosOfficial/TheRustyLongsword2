@@ -24,8 +24,13 @@ public class Card : MonoBehaviour,
     private CardDefinition definition;
 
     [SerializeField] private int value;
-    [SerializeField] private int rank;
-    [SerializeField] private int suit;
+
+    // rank/suit are enums, but Unity serialises an enum as its
+    // underlying int - so these still read the SAME "rank: 1"
+    // and "suit: 3" already authored in the 53 card prefabs.
+    // Retyping them needed no migration and rewrote no YAML.
+    [SerializeField] private CardRank rank;
+    [SerializeField] private CardSuit suit;
 
 
     // =========================================================
@@ -497,8 +502,11 @@ public class Card : MonoBehaviour,
 
         // Jack, Queen, and King count as 10
         // when calculating numerical card values.
-
-        if (value >= CardConstants.LowestFaceRank &&
+        //
+        // Defensive only: the prefabs already author face cards
+        // with value 10, so this clamp has never fired. It is
+        // kept because nothing enforces that.
+        if (value >= (int)CardConstants.LowestFaceRank &&
             value <= CardConstants.RanksPerSuit)
         {
             return CardConstants.FaceCardValue;
@@ -509,23 +517,15 @@ public class Card : MonoBehaviour,
     }
 
 
-    public int GetRank()
+    public CardRank GetRank()
     {
-        // Actual card rank:
-        //
-        // Ace   = 1
-        // 2-10  = 2-10
-        // Jack  = 11
-        // Queen = 12
-        // King  = 13
-
         return definition != null
             ? definition.Rank
             : rank;
     }
 
 
-    public int GetSuit()
+    public CardSuit GetSuit()
     {
         return definition != null
             ? definition.Suit
@@ -560,9 +560,9 @@ public class Card : MonoBehaviour,
 
     public int EditorRawValue => value;
 
-    public int EditorRawRank => rank;
+    public CardRank EditorRawRank => rank;
 
-    public int EditorRawSuit => suit;
+    public CardSuit EditorRawSuit => suit;
 
 #endif
 }

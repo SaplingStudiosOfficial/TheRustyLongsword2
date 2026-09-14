@@ -14,7 +14,9 @@
 
 public static class CardConstants
 {
-    public const int AceRank = 1;
+    public const CardRank AceRank = CardRank.Ace;
+
+    public const CardRank HighestRank = CardRank.King;
 
     public const int RanksPerSuit = 13;
 
@@ -29,7 +31,7 @@ public static class CardConstants
     // numerical card values, but keep their true rank (11, 12,
     // 13) for pairs and runs.
 
-    public const int LowestFaceRank = 11;
+    public const CardRank LowestFaceRank = CardRank.Jack;
 
     public const int FaceCardValue = 10;
 }

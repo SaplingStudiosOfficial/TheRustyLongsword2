@@ -25,17 +25,16 @@ public readonly struct CardValue
     public readonly int PipValue;
 
     // True rank used for Pairs and Runs.
-    // Ace = 1, Jack = 11, Queen = 12, King = 13.
-    public readonly int Rank;
+    public readonly CardRank Rank;
 
-    // Suit identifier used for Flushes.
-    public readonly int Suit;
+    // Suit used for Flushes.
+    public readonly CardSuit Suit;
 
 
     public CardValue(
         int pipValue,
-        int rank,
-        int suit)
+        CardRank rank,
+        CardSuit suit)
     {
         PipValue = pipValue;
         Rank = rank;

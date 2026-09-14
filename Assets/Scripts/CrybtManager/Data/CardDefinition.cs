@@ -51,13 +51,13 @@ using UnityEngine;
 public class CardDefinition : ScriptableObject
 {
     [SerializeField]
-    [Tooltip("True rank. Ace = 1, Jack = 11, Queen = 12, King = 13.")]
-    private int rank = 1;
+    [Tooltip("True rank. Face cards keep rank 11/12/13 but are " +
+             "worth 10 when totalling to Fifteen.")]
+    private CardRank rank = CardRank.Ace;
 
     [SerializeField]
-    [Tooltip("Suit identifier, matching the numbering already " +
-             "used by the card prefabs.")]
-    private int suit = 0;
+    [Tooltip("Suit. Only used for Flushes.")]
+    private CardSuit suit = CardSuit.Hearts;
 
     [SerializeField]
     [Tooltip("Optional face art, for when the deck is built at " +
@@ -65,9 +65,9 @@ public class CardDefinition : ScriptableObject
     private Sprite face;
 
 
-    public int Rank => rank;
+    public CardRank Rank => rank;
 
-    public int Suit => suit;
+    public CardSuit Suit => suit;
 
     public Sprite Face => face;
 
@@ -85,7 +85,7 @@ public class CardDefinition : ScriptableObject
     public int PipValue =>
         rank >= CardConstants.LowestFaceRank
             ? CardConstants.FaceCardValue
-            : rank;
+            : (int)rank;
 
 
     // =========================================================
@@ -112,8 +112,8 @@ public class CardDefinition : ScriptableObject
     // nothing at runtime can write to card data.
 
     public void EditorInitialiseFrom(
-        int sourceRank,
-        int sourceSuit,
+        CardRank sourceRank,
+        CardSuit sourceSuit,
         Sprite sourceFace)
     {
         rank = sourceRank;
