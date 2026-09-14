@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
@@ -9,6 +9,19 @@ public class Card : MonoBehaviour,
     // =========================================================
     // CARD DATA
     // =========================================================
+    //
+    // MIGRATION IN PROGRESS - see CardDefinition.
+    //
+    // When a definition asset is assigned it wins. When it is
+    // not, these serialized integers are used exactly as
+    // before, so every existing card prefab keeps working
+    // untouched.
+
+    [SerializeField]
+    [Tooltip("Optional. When assigned, this asset supplies the " +
+             "card's rank and suit and the integers below are " +
+             "ignored.")]
+    private CardDefinition definition;
 
     [SerializeField] private int value;
     [SerializeField] private int rank;
@@ -58,8 +71,11 @@ public class Card : MonoBehaviour,
     // =========================================================
     // REFERENCES
     // =========================================================
+    //
+    // Pushed in by the manager via Bind(). The card no longer
+    // goes looking for it - see ICardClickHandler.
 
-    private CrybtManager manager;
+    private ICardClickHandler handler;
 
 
     // =========================================================
@@ -68,10 +84,6 @@ public class Card : MonoBehaviour,
 
     private void Awake()
     {
-        manager =
-            FindObjectOfType<CrybtManager>();
-
-
         basePosition =
             transform.position;
 
@@ -90,11 +102,47 @@ public class Card : MonoBehaviour,
         }
         else
         {
-            Debug.LogWarning(
+            GameLog.Warning(
                 gameObject.name +
                 " does not have a Button assigned."
             );
         }
+    }
+
+
+    private void OnDestroy()
+    {
+        if (button != null)
+        {
+            button.onClick.RemoveListener(
+                CardClicked
+            );
+        }
+    }
+
+
+    // =========================================================
+    // BIND
+    // =========================================================
+    //
+    // Called once by whatever is running the table.
+
+    public void Bind(ICardClickHandler clickHandler)
+    {
+        handler = clickHandler;
+    }
+
+
+    // =========================================================
+    // BIND DEFINITION
+    // =========================================================
+    //
+    // Used when the deck is built at runtime from
+    // CardDefinition assets rather than from prefab variants.
+
+    public void Bind(CardDefinition cardDefinition)
+    {
+        definition = cardDefinition;
     }
 
 
@@ -122,36 +170,11 @@ public class Card : MonoBehaviour,
         t = Mathf.Clamp01(t);
 
 
-        // =====================================================
-        // QUADRATIC EASE IN / OUT
-        // =====================================================
-        //
-        // First half:
-        // Accelerates toward the destination.
-        //
-        // Second half:
-        // Decelerates into the destination.
-        //
-        // This creates the parabolic-style acceleration
-        // instead of moving at a constant speed.
-
-        float easedT;
-
-
-        if (t < 0.5f)
-        {
-            easedT =
-                2f * t * t;
-        }
-        else
-        {
-            easedT =
-                1f -
-                Mathf.Pow(
-                    -2f * t + 2f,
-                    2f
-                ) / 2f;
-        }
+        // Quadratic ease in / out.
+        // Shared with the card rotation animation so the two
+        // always feel like the same movement.
+        float easedT =
+            Easing.QuadInOut(t);
 
 
         transform.position =
@@ -224,17 +247,20 @@ public class Card : MonoBehaviour,
         }
 
 
-        if (manager == null)
+        if (handler == null)
         {
-            Debug.LogWarning(
-                "Card could not find CrybtManager."
+            GameLog.Warning(
+                gameObject.name
+                + " was clicked but nothing has called Bind() "
+                + "on it. Is this card in one of CrybtManager's "
+                + "card lists?"
             );
 
             return;
         }
 
 
-        manager.CardClicked(
+        handler.CardClicked(
             this
         );
     }
@@ -463,13 +489,19 @@ public class Card : MonoBehaviour,
 
     public int GetValue()
     {
+        if (definition != null)
+        {
+            return definition.PipValue;
+        }
+
+
         // Jack, Queen, and King count as 10
         // when calculating numerical card values.
 
-        if (value >= 11 &&
-            value <= 13)
+        if (value >= CardConstants.LowestFaceRank &&
+            value <= CardConstants.RanksPerSuit)
         {
-            return 10;
+            return CardConstants.FaceCardValue;
         }
 
 
@@ -487,12 +519,50 @@ public class Card : MonoBehaviour,
         // Queen = 12
         // King  = 13
 
-        return rank;
+        return definition != null
+            ? definition.Rank
+            : rank;
     }
 
 
     public int GetSuit()
     {
-        return suit;
+        return definition != null
+            ? definition.Suit
+            : suit;
     }
+
+
+    // =========================================================
+    // AS CARD VALUE
+    // =========================================================
+    //
+    // The plain data form the scoring rules operate on.
+
+    public CardValue ToCardValue()
+    {
+        return new CardValue(
+            GetValue(),
+            GetRank(),
+            GetSuit()
+        );
+    }
+
+
+#if UNITY_EDITOR
+
+    // =========================================================
+    // EDITOR ACCESS
+    // =========================================================
+    //
+    // Used by the CardDefinition generator so it can read the
+    // values baked into each prefab variant. Editor-only.
+
+    public int EditorRawValue => value;
+
+    public int EditorRawRank => rank;
+
+    public int EditorRawSuit => suit;
+
+#endif
 }

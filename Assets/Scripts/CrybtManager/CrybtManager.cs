@@ -1,26 +1,108 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
-public class CrybtManager : MonoBehaviour
+// =============================================================
+// CRYBT MANAGER
+// =============================================================
+//
+// Coordinates the encounter stage machine.
+//
+// WHAT THIS CLASS NO LONGER DOES:
+//
+// Scoring maths ......... CrybtScoring  (pure, testable)
+// Damage maths .......... CrybtCombat   (pure, testable)
+// Easing ................ Easing        (shared with Card)
+// Boon bookkeeping ...... BoonShop
+// Every Button and Text . EncounterHud
+// Tuning numbers ........ CrybtRules asset
+//
+// It coordinates. It does not calculate, and it does not draw.
+// =============================================================
+
+public class CrybtManager : MonoBehaviour, ICardClickHandler
 {
     // =========================================================
-    // ENCOUNTER STATES
+    // RULES
     // =========================================================
 
-    public enum EncounterStage
-    {
-        StartingEncounter,
-        ChoosingOffering,
-        ChoosingHero,
-        ChoosingHeroFromGraveyard,
-        BuildingCombination,
-        ResolvingEncounter,
-        EndingEncounter,
-        EndingCrawl,
-        ChoosingBoons,
-        GameOver
-    }
+    [Header("Rules")]
+
+    [SerializeField]
+    [Tooltip("Tuning asset. Create via Assets > Create > Crybt > Rules.")]
+    private CrybtRules rules;
+
+
+    // =========================================================
+    // HUD
+    // =========================================================
+
+    [Header("HUD")]
+
+    [SerializeField]
+    [Tooltip("Owns every Button and Text. See EncounterHud.")]
+    private EncounterHud hud;
+
+
+    // =========================================================
+    // BOON SHOP
+    // =========================================================
+
+    [Header("Boons")]
+
+    [SerializeField]
+    private BoonShop boonShop = new BoonShop();
+
+
+    // =========================================================
+    // LEGACY UI REFERENCES - MIGRATION ONLY
+    // =========================================================
+    //
+    // These fields used to drive the HUD directly. They are
+    // kept, hidden, for ONE release so that the references
+    // already wired up in the Crybt scene are not lost when
+    // the class changes.
+    //
+    // TO MIGRATE:
+    //
+    //   1. Open the Crybt scene.
+    //   2. Tools > Crybt > Migrate HUD References
+    //   3. Save the scene.
+    //   4. Delete this entire block and the EncounterHudMigration
+    //      editor script.
+    //
+    // Do not add anything new here.
+
+    // 0649 = never assigned (Unity assigns these from the scene)
+    // 0169 = never used     (nothing reads them any more - that
+    //                        is the point; the migration tool
+    //                        copies them across)
+#pragma warning disable 0649, 0169
+
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Button KeepHeroButton;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Button SwitchHeroButton;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Button PeekCardButton;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Button ConfirmComboButton;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Button EndEncounterButton;
+
+    [HideInInspector] [SerializeField] private GameObject TrashDisplay;
+    [HideInInspector] [SerializeField] private GameObject AttackScore;
+    [HideInInspector] [SerializeField] private GameObject Boons;
+
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text HealthDisplay;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text ModifierDisplay;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text ScoreDisplay;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text MonsterAPDisplay;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text EncounterDisplay;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text CrawlDisplay;
+    [HideInInspector] [SerializeField] private UnityEngine.UI.Text OfferingPointsDisplay;
+
+#pragma warning restore 0649, 0169
+
+
+    // =========================================================
+    // ENCOUNTER STATE
+    // =========================================================
 
     [SerializeField] private EncounterStage currentStage;
 
@@ -28,6 +110,8 @@ public class CrybtManager : MonoBehaviour
     // =========================================================
     // CARD LISTS
     // =========================================================
+
+    [Header("Card Lists")]
 
     [SerializeField] private List<Card> Hand;
     [SerializeField] private List<Card> Deck;
@@ -44,10 +128,31 @@ public class CrybtManager : MonoBehaviour
     private List<string> scoredCombinations =
         new List<string>();
 
+    // Reused when handing card data to CrybtScoring so that
+    // scoring a combination does not allocate a new list.
+    private readonly List<CardValue> scoringBuffer =
+        new List<CardValue>();
+
+    // Same idea for the score breakdown shown under the score:
+    // the preview is rebuilt on every card toggle, so neither
+    // the rule list nor the string builder is reallocated.
+    private readonly List<ScoreItem> breakdownBuffer =
+        new List<ScoreItem>();
+
+    private readonly System.Text.StringBuilder breakdownText =
+        new System.Text.StringBuilder();
+
+    [SerializeField]
+    [Tooltip("Shown under the score when the selected cards " +
+             "form no scoring combination.")]
+    private string noScoreText = "No score";
+
 
     // =========================================================
     // CARD POSITIONS
     // =========================================================
+
+    [Header("Card Slots")]
 
     [SerializeField] private GameObject HandSlot;
     [SerializeField] private GameObject DeckSlot;
@@ -61,41 +166,14 @@ public class CrybtManager : MonoBehaviour
 
 
     // =========================================================
-    // PLAYER / GAME UI
-    // =========================================================
-
-    [SerializeField] private Text HealthDisplay;
-    [SerializeField] private Text ModifierDisplay;
-    [SerializeField] private Text ScoreDisplay;
-    [SerializeField] private Text MonsterAPDisplay;
-    [SerializeField] private Text EncounterDisplay;
-    [SerializeField] private Text CrawlDisplay;
-    [SerializeField] private Text OfferingPointsDisplay;
-    [SerializeField] private GameObject TrashDisplay;
-    [SerializeField] private GameObject AttackScore;
-
-
-    // =========================================================
-    // ENCOUNTER BUTTONS
-    // =========================================================
-
-    [SerializeField] private Button KeepHeroButton;
-    [SerializeField] private Button SwitchHeroButton;
-    [SerializeField] private Button PeekCardButton;
-    [SerializeField] private Button ConfirmComboButton;
-    [SerializeField] private Button EndEncounterButton;
-
-
-    // =========================================================
-    // BOON UI
-    // =========================================================
-
-    [SerializeField] private GameObject Boons;
-
-
-    // =========================================================
     // PLAYER DATA
     // =========================================================
+    //
+    // These stay serialized here rather than moving into
+    // CrybtRules because they already hold values authored in
+    // the Crybt scene.
+
+    [Header("Player")]
 
     [SerializeField] private int Health = 20;
     [SerializeField] private int Modifier = 0;
@@ -113,32 +191,6 @@ public class CrybtManager : MonoBehaviour
     private int encounterNumber = 0;
     private int crawlNumber = 1;
 
-    private const int encountersPerCrawl = 4;
-
-
-    // =========================================================
-    // CURRENT CRAWL BOONS
-    // =========================================================
-
-    private bool boon1Torch = false;
-    private bool boon2WardingSigil = false;
-    private bool boon3BoneCharm = false;
-    private bool boon4HolyWater = false;
-    private bool boon5BlackGrimoire = false;
-    private bool boon6BrokenMirror = false;
-
-
-    // =========================================================
-    // NEXT CRAWL BOONS
-    // =========================================================
-
-    private bool nextCrawlTorch = false;
-    private bool nextCrawlWardingSigil = false;
-    private bool nextCrawlBoneCharm = false;
-    private bool nextCrawlHolyWater = false;
-    private bool nextCrawlBlackGrimoire = false;
-    private bool nextCrawlBrokenMirror = false;
-
 
     // =========================================================
     // TORCH
@@ -148,29 +200,204 @@ public class CrybtManager : MonoBehaviour
 
 
     // =========================================================
+    // MONSTER ATTACK POWER READOUT
+    // =========================================================
+    //
+    // null renders as "?" - the Monster has not been revealed.
+
+    private int? displayedMonsterAttackPower = null;
+
+
+    // =========================================================
+    // CARD ROTATION
+    // =========================================================
+    //
+    // WHY THIS DICTIONARY EXISTS:
+    //
+    // MoveCards() is called from ten different places and used
+    // to start a fresh rotation coroutine for every Graveyard
+    // card each time, without stopping the previous ones.
+    //
+    // Two coroutines animating the same transform, each lerping
+    // from a different captured start rotation, made cards snap
+    // and jitter on the EndEncounter -> StartEncounter path.
+    //
+    // One rotation per card, tracked and cancelled here.
+
+    private readonly Dictionary<Card, Coroutine> rotationRoutines =
+        new Dictionary<Card, Coroutine>();
+
+    private const float rotationDuration = 0.25f;
+
+
+    // =========================================================
     // START
     // =========================================================
 
     private void Start()
     {
+        EnsureRules();
+
+        EnsureHud();
+
+        BindCards();
+
         currentStage =
             EncounterStage.StartingEncounter;
 
-        if (Boons != null)
-        {
-            Boons.SetActive(false);
-        }
-
         offeringPoints = 0;
 
-        ClearMonsterAPDisplay();
+        displayedMonsterAttackPower = null;
 
-        UpdateEncounterButtons();
-        UpdateDisplays();
+        RefreshHud();
 
         Shuffle();
 
         StartCrawl();
+    }
+
+
+    // =========================================================
+    // ENSURE RULES
+    // =========================================================
+    //
+    // The game should still run if the rules asset has not
+    // been wired up yet, but it should say so loudly.
+
+    private void EnsureRules()
+    {
+        if (rules != null)
+        {
+            return;
+        }
+
+        GameLog.Warning(
+            "CrybtManager has no CrybtRules asset assigned. "
+            + "Falling back to built-in defaults. "
+            + "Create one via Assets > Create > Crybt > Rules."
+        );
+
+        rules =
+            ScriptableObject.CreateInstance<CrybtRules>();
+    }
+
+
+    // =========================================================
+    // ENSURE HUD
+    // =========================================================
+    //
+    // Every UI update in this class now goes through
+    // RefreshHud(), which does nothing when hud is null. That
+    // is the correct behaviour for a missing optional
+    // reference, but it fails SILENTLY and the result looks
+    // like a gameplay bug rather than a wiring problem: no
+    // button ever shows or hides, so the encounter cannot get
+    // past "Keep Hero or Switch Hero", so cards can never be
+    // toggled into a combination.
+    //
+    // So say so, loudly, once, at startup.
+
+    private void EnsureHud()
+    {
+        if (hud != null)
+        {
+            return;
+        }
+
+        // The migration tool adds the component to this same
+        // GameObject, so pick it up even if the inspector
+        // reference was not saved with the scene.
+        hud = GetComponent<EncounterHud>();
+
+        if (hud == null)
+        {
+            // No migrated HUD. Build one at runtime rather
+            // than shipping a dead UI: the widget references
+            // are still sitting in the legacy block below,
+            // because the scene YAML still carries them under
+            // their original field names.
+            hud = gameObject.AddComponent<EncounterHud>();
+
+            GameLog.Info(
+                "No EncounterHud found - built one at runtime "
+                + "from the legacy widget references. The game "
+                + "is playable as-is. To make this permanent "
+                + "(and let the legacy block be deleted), run "
+                + "Tools > Crybt > Migrate HUD References and "
+                + "save the Crybt scene."
+            );
+        }
+
+        // Fill in anything the Inspector left empty. Widgets
+        // already assigned on a migrated HUD are kept.
+        hud.AdoptWidgets(
+            KeepHeroButton,
+            SwitchHeroButton,
+            PeekCardButton,
+            ConfirmComboButton,
+            EndEncounterButton,
+            TrashDisplay,
+            AttackScore,
+            Boons,
+            HealthDisplay,
+            ModifierDisplay,
+            ScoreDisplay,
+            MonsterAPDisplay,
+            EncounterDisplay,
+            CrawlDisplay,
+            OfferingPointsDisplay
+        );
+
+        // Lets the HUD place the score breakdown under the
+        // player's hand without having to know the board
+        // layout itself.
+        if (HandSlot != null)
+        {
+            hud.SetHandAnchor(
+                HandSlot.transform as RectTransform
+            );
+        }
+    }
+
+
+    // =========================================================
+    // BIND CARDS
+    // =========================================================
+    //
+    // Cards used to locate this manager themselves with
+    // FindObjectOfType in Awake - 53 full scene scans, and a
+    // hard dependency on the concrete manager type.
+    //
+    // The manager now pushes itself down once instead.
+
+    private void BindCards()
+    {
+        BindCardList(Deck);
+        BindCardList(Hand);
+        BindCardList(Hero);
+        BindCardList(Monster);
+        BindCardList(Discard);
+        BindCardList(Offering);
+        BindCardList(Graveyard);
+    }
+
+
+    private void BindCardList(List<Card> cards)
+    {
+        if (cards == null)
+        {
+            return;
+        }
+
+        for (int i = 0;
+            i < cards.Count;
+            i++)
+        {
+            if (cards[i] != null)
+            {
+                cards[i].Bind(this);
+            }
+        }
     }
 
 
@@ -182,21 +409,21 @@ public class CrybtManager : MonoBehaviour
     {
         encounterNumber = 0;
 
-        Debug.Log(
+        GameLog.Info(
             "================================"
         );
 
-        Debug.Log(
+        GameLog.Info(
             "Starting Crawl "
             + crawlNumber
         );
 
-        Debug.Log(
-            "Torch Active: "
-            + boon1Torch
+        GameLog.Info(
+            "Active Boons: "
+            + boonShop.DescribeActive()
         );
 
-        Debug.Log(
+        GameLog.Info(
             "================================"
         );
 
@@ -213,11 +440,11 @@ public class CrybtManager : MonoBehaviour
         currentStage =
             EncounterStage.EndingCrawl;
 
-        UpdateEncounterButtons();
+        displayedMonsterAttackPower = null;
 
-        ClearMonsterAPDisplay();
+        RefreshHud();
 
-        Debug.Log(
+        GameLog.Info(
             "Crawl "
             + crawlNumber
             + " complete."
@@ -230,31 +457,19 @@ public class CrybtManager : MonoBehaviour
         offeringPoints =
             CalculateOfferingPoints();
 
-        Debug.Log(
+        GameLog.Info(
             "Offering Points available to spend: "
             + offeringPoints
         );
 
         // Reset purchases for the upcoming crawl.
-        nextCrawlTorch = false;
-        nextCrawlWardingSigil = false;
-        nextCrawlBoneCharm = false;
-        nextCrawlHolyWater = false;
-        nextCrawlBlackGrimoire = false;
-        nextCrawlBrokenMirror = false;
+        boonShop.ClearPurchases();
 
         // Enter Boon Shop.
         currentStage =
             EncounterStage.ChoosingBoons;
 
-        UpdateEncounterButtons();
-
-        if (Boons != null)
-        {
-            Boons.SetActive(true);
-        }
-
-        UpdateDisplays();
+        RefreshHud();
     }
 
 
@@ -267,13 +482,11 @@ public class CrybtManager : MonoBehaviour
         currentStage =
             EncounterStage.StartingEncounter;
 
-        UpdateEncounterButtons();
-
         encounterScore = 0;
 
         peekedMonster = null;
 
-        ClearMonsterAPDisplay();
+        displayedMonsterAttackPower = null;
 
         ClearPlay();
 
@@ -284,21 +497,20 @@ public class CrybtManager : MonoBehaviour
 
         encounterNumber++;
 
-        Debug.Log(
+        GameLog.Info(
             "Starting Encounter "
             + encounterNumber
             + " of "
-            + encountersPerCrawl
+            + rules.EncountersPerCrawl
         );
 
-        DrawFive();
+        DrawHand();
 
         // Player chooses Offering first.
         currentStage =
             EncounterStage.ChoosingOffering;
 
-        UpdateEncounterButtons();
-        UpdateDisplays();
+        RefreshHud();
     }
 
 
@@ -366,7 +578,7 @@ public class CrybtManager : MonoBehaviour
 
         if (Deck.Count == 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "No cards available to draw Hero."
             );
 
@@ -384,13 +596,13 @@ public class CrybtManager : MonoBehaviour
 
         MoveCards();
 
-        UpdateEncounterButtons();
+        RefreshHud();
 
-        Debug.Log(
+        GameLog.Info(
             "Hero drawn."
         );
 
-        Debug.Log(
+        GameLog.Info(
             "Choose Keep Hero or Switch Hero."
         );
     }
@@ -408,14 +620,14 @@ public class CrybtManager : MonoBehaviour
             return;
         }
 
-        Debug.Log(
+        GameLog.Info(
             "Hero kept."
         );
 
         currentStage =
             EncounterStage.StartingEncounter;
 
-        UpdateEncounterButtons();
+        RefreshHud();
 
         RevealMonster();
     }
@@ -435,7 +647,7 @@ public class CrybtManager : MonoBehaviour
 
         if (Graveyard.Count == 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "The Graveyard is empty."
             );
 
@@ -445,31 +657,13 @@ public class CrybtManager : MonoBehaviour
         currentStage =
             EncounterStage.ChoosingHeroFromGraveyard;
 
-        Debug.Log(
+        GameLog.Info(
             "Choose one card from the Graveyard."
         );
 
-        UpdateEncounterButtons();
+        RefreshHud();
 
         MoveCards();
-    }
-
-    private System.Collections.IEnumerator RotateHeroUprightAfterMove(
-    Card card)
-    {
-        // This should match the card's movement duration.
-        yield return new WaitForSeconds(
-            0.25f
-        );
-
-        // Now that the card has arrived at the Hero slot,
-        // smoothly rotate it back upright.
-        yield return StartCoroutine(
-            RotateCard(
-                card,
-                Quaternion.identity
-            )
-        );
     }
 
 
@@ -492,8 +686,8 @@ public class CrybtManager : MonoBehaviour
 
         if (Hero.Count == 0)
         {
-            Debug.Log(
-                "ERROR: There is no Hero to replace."
+            GameLog.Error(
+                "There is no Hero to replace."
             );
 
             return;
@@ -522,12 +716,12 @@ public class CrybtManager : MonoBehaviour
             selectedCard
         );
 
-        Debug.Log(
+        GameLog.Info(
             oldHero.gameObject.name
             + " was discarded."
         );
 
-        Debug.Log(
+        GameLog.Info(
             selectedCard.gameObject.name
             + " is now the Hero."
         );
@@ -546,7 +740,24 @@ public class CrybtManager : MonoBehaviour
             )
         );
 
-        UpdateEncounterButtons();
+        RefreshHud();
+    }
+
+
+    private IEnumerator RotateHeroUprightAfterMove(
+        Card card)
+    {
+        // This should match the card's movement duration.
+        yield return new WaitForSeconds(
+            rotationDuration
+        );
+
+        // Now that the card has arrived at the Hero slot,
+        // smoothly rotate it back upright.
+        RotateTo(
+            card,
+            Quaternion.identity
+        );
     }
 
 
@@ -562,9 +773,9 @@ public class CrybtManager : MonoBehaviour
             return;
         }
 
-        if (!boon1Torch)
+        if (!boonShop.IsActive(BoonId.Torch))
         {
-            Debug.Log(
+            GameLog.Info(
                 "Torch is not active."
             );
 
@@ -573,7 +784,7 @@ public class CrybtManager : MonoBehaviour
 
         if (peekedMonster != null)
         {
-            Debug.Log(
+            GameLog.Info(
                 "Monster has already been peeked."
             );
 
@@ -584,7 +795,7 @@ public class CrybtManager : MonoBehaviour
 
         if (Deck.Count == 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "No Monster available to peek."
             );
 
@@ -602,21 +813,20 @@ public class CrybtManager : MonoBehaviour
 
         peekedMonster.DeactivateCard();
 
-        ShowMonsterAP(
-            peekedMonster
-        );
+        displayedMonsterAttackPower =
+            GetMonsterAttackPower(peekedMonster);
 
-        Debug.Log(
+        GameLog.Info(
             "Torch reveals: "
             + peekedMonster.gameObject.name
         );
 
-        Debug.Log(
+        GameLog.Info(
             "Peeked Monster AP: "
-            + GetMonsterAP(peekedMonster)
+            + displayedMonsterAttackPower
         );
 
-        UpdateEncounterButtons();
+        RefreshHud();
     }
 
 
@@ -634,7 +844,7 @@ public class CrybtManager : MonoBehaviour
 
             peekedMonster = null;
 
-            Debug.Log(
+            GameLog.Info(
                 "Peeked Monster officially revealed."
             );
         }
@@ -644,7 +854,7 @@ public class CrybtManager : MonoBehaviour
 
             if (Deck.Count == 0)
             {
-                Debug.Log(
+                GameLog.Info(
                     "No cards available to draw Monster."
                 );
 
@@ -663,227 +873,198 @@ public class CrybtManager : MonoBehaviour
 
         if (Monster.Count > 0)
         {
-            ShowMonsterAP(
-                Monster[0]
-            );
+            displayedMonsterAttackPower =
+                GetMonsterAttackPower(Monster[0]);
         }
 
         MoveCards();
 
-        UpdateEncounterButtons();
+        RefreshHud();
 
-        Debug.Log(
+        GameLog.Info(
             "Monster revealed."
         );
 
         if (Monster.Count > 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "Monster AP: "
-                + GetMonsterAP(
-                    Monster[0]
-                )
+                + displayedMonsterAttackPower
             );
         }
 
-        Debug.Log(
+        GameLog.Info(
             "Build your combinations."
         );
     }
 
 
     // =========================================================
-    // MONSTER AP
+    // MONSTER ATTACK POWER
     // =========================================================
 
-    private int GetMonsterAP(Card monsterCard)
+    private int GetMonsterAttackPower(Card monsterCard)
     {
         if (monsterCard == null)
         {
             return 0;
         }
 
-        // Monster AP =
-        // Card Value + Modifier
-
-        int AP =
-            monsterCard.GetValue()
-            + Modifier;
-
-        return Mathf.Max(
-            0,
-            AP
+        return CrybtCombat.MonsterAttackPower(
+            monsterCard.GetValue(),
+            Modifier
         );
     }
 
 
-    private void ShowMonsterAP(Card monsterCard)
+    // =========================================================
+    // HUD
+    // =========================================================
+    //
+    // One snapshot, one call. Replaces the old
+    // UpdateEncounterButtons() and UpdateDisplays() pair.
+
+    private void RefreshHud()
     {
-        if (MonsterAPDisplay == null)
+        if (hud == null)
         {
             return;
         }
 
-        MonsterAPDisplay.text =
-            GetMonsterAP(
-                monsterCard
-            ).ToString();
+        hud.Render(
+            BuildView()
+        );
     }
 
 
-    private void ClearMonsterAPDisplay()
+    private EncounterView BuildView()
     {
-        if (MonsterAPDisplay == null)
-        {
-            return;
-        }
+        bool canPeek =
+            boonShop.IsActive(BoonId.Torch)
+            && peekedMonster == null;
 
-        MonsterAPDisplay.text = "?";
+        int? preview =
+            PreviewSelectedCombination(
+                out string breakdown
+            );
+
+        return new EncounterView(
+            currentStage,
+            Graveyard.Count > 0,
+            canPeek,
+            Health,
+            Modifier,
+            encounterScore,
+            encounterNumber,
+            rules.EncountersPerCrawl,
+            crawlNumber,
+            offeringPoints,
+            displayedMonsterAttackPower,
+            preview,
+            breakdown
+        );
     }
 
 
     // =========================================================
-    // UPDATE ENCOUNTER BUTTONS
+    // PREVIEW SELECTED COMBINATION
     // =========================================================
+    //
+    // What the cards on the table would score if the player
+    // confirmed them right now.
+    //
+    // Safe to call every refresh: CrybtScoring is pure, takes
+    // no Unity types and mutates nothing. It is the same call
+    // ConfirmCombination() makes, so the preview can never
+    // disagree with the real award.
+    //
+    // Returns null when there is nothing to preview, which
+    // makes the readout fall back to the encounter total.
 
-    private void UpdateEncounterButtons()
+    private int? PreviewSelectedCombination(
+        out string breakdown)
     {
-        // Hide everything first.
+        breakdown = string.Empty;
 
-        if (KeepHeroButton != null)
-        {
-            KeepHeroButton.gameObject.SetActive(
-                false
-            );
-        }
-
-        if (SwitchHeroButton != null)
-        {
-            SwitchHeroButton.gameObject.SetActive(
-                false
-            );
-        }
-
-        if (PeekCardButton != null)
-        {
-            PeekCardButton.gameObject.SetActive(
-                false
-            );
-        }
-
-        if (ConfirmComboButton != null)
-        {
-            ConfirmComboButton.gameObject.SetActive(
-                false
-            );
-        }
-
-        if (EndEncounterButton != null)
-        {
-            EndEncounterButton.gameObject.SetActive(
-                false
-            );
-        }
-
-        if (TrashDisplay != null)
-        {
-            TrashDisplay.gameObject.SetActive(
-                false
-            );
-        }
-
-        if (AttackScore != null)
-        {
-            AttackScore.gameObject.SetActive(
-                false
-            );
-        }
-
-
-
-        // =====================================================
-        // CHOOSING OFFERING
-        // =====================================================
-
-        if (currentStage ==
-            EncounterStage.ChoosingOffering)
-        {
-            if (TrashDisplay != null)
-            {
-                TrashDisplay.SetActive(true);
-            }
-
-            return;
-        }
-
-
-        // =====================================================
-        // CHOOSING HERO
-        // =====================================================
-
-        if (currentStage ==
-            EncounterStage.ChoosingHero)
-        {
-            if (KeepHeroButton != null)
-            {
-                KeepHeroButton.gameObject.SetActive(
-                    true
-                );
-            }
-
-            if (SwitchHeroButton != null && Graveyard.Count > 0)
-            {
-                SwitchHeroButton.gameObject.SetActive(
-                    true
-                );
-            }
-
-            if (PeekCardButton != null)
-            {
-                bool canPeek =
-                    boon1Torch
-                    &&
-                    peekedMonster == null;
-
-                PeekCardButton.gameObject.SetActive(
-                    canPeek
-                );
-            }
-
-            return;
-        }
-
-
-        // =====================================================
-        // BUILDING COMBINATION
-        // =====================================================
-
-        if (currentStage ==
+        if (currentStage !=
             EncounterStage.BuildingCombination)
         {
-            if (ConfirmComboButton != null)
-            {
-                ConfirmComboButton.gameObject.SetActive(
-                    true
-                );
-            }
-
-            if (EndEncounterButton != null)
-            {
-                EndEncounterButton.gameObject.SetActive(
-                    true
-                );
-            }
-
-            if (AttackScore != null)
-            {
-                AttackScore.gameObject.SetActive(
-                    true
-                );
-            }
-
-            return;
+            return null;
         }
+
+        if (Play == null ||
+            Play.Count == 0)
+        {
+            return null;
+        }
+
+        FillScoringBuffer(Play);
+
+        int points =
+            CrybtScoring.DescribeCombination(
+                scoringBuffer,
+                rules,
+                breakdownBuffer
+            );
+
+        breakdown =
+            FormatBreakdown(breakdownBuffer);
+
+        return points;
+    }
+
+
+    // =========================================================
+    // FORMAT BREAKDOWN
+    // =========================================================
+    //
+    // All rules on ONE wide line, separated by spaces:
+    //
+    //     FIFTEEN: 2   PAIR: 2
+    //
+    // Two deliberate choices here, both driven by the pixel
+    // font this game uses:
+    //
+    //  - UPPERCASE, because the rest of the HUD is (HP, AP,
+    //    ENCNTR) and a pixel font may carry no lowercase
+    //    glyphs. A missing glyph renders as a blank box, which
+    //    is exactly what the unrevealed-monster "?" already
+    //    does.
+    //
+    //  - "NAME: n" rather than "NAME +n", because ":" is known
+    //    to render in this font (HP:, AP:) and "+" is not
+    //    known to.
+    //
+    // One line also keeps the label clear of the bottom of the
+    // board, which a stacked list would run past.
+
+    private string FormatBreakdown(
+        List<ScoreItem> items)
+    {
+        if (items == null ||
+            items.Count == 0)
+        {
+            return noScoreText;
+        }
+
+        breakdownText.Length = 0;
+
+        for (int i = 0;
+            i < items.Count;
+            i++)
+        {
+            if (i > 0)
+            {
+                breakdownText.Append("   ");
+            }
+
+            breakdownText
+                .Append(items[i].Name.ToUpperInvariant())
+                .Append(": ")
+                .Append(items[i].Points);
+        }
+
+        return breakdownText.ToString();
     }
 
 
@@ -918,7 +1099,7 @@ public class CrybtManager : MonoBehaviour
 
             selectedCard.DeselectCard();
 
-            Debug.Log(
+            GameLog.Info(
                 selectedCard.gameObject.name
                 + " removed from combination."
             );
@@ -933,16 +1114,32 @@ public class CrybtManager : MonoBehaviour
 
             selectedCard.SelectCard();
 
-            Debug.Log(
+            // Rank and suit are logged because a card whose
+            // rank disagrees with its face looks like a
+            // scoring bug and is actually a prefab data bug.
+            // See 1_Spades Variant.
+            CardValue picked =
+                selectedCard.ToCardValue();
+
+            GameLog.Info(
                 selectedCard.gameObject.name
                 + " added to combination."
+                + "  (pip " + picked.PipValue
+                + ", rank " + picked.Rank
+                + ", suit " + picked.Suit
+                + ")"
             );
         }
 
-        Debug.Log(
+        GameLog.Info(
             "Cards selected: "
             + Play.Count
         );
+
+        // Every toggle changes what the selection would score,
+        // so redraw. This is what makes the score readout a
+        // live preview rather than a running total.
+        RefreshHud();
     }
 
 
@@ -960,7 +1157,7 @@ public class CrybtManager : MonoBehaviour
 
         if (Play.Count == 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "Select cards before confirming."
             );
 
@@ -976,27 +1173,38 @@ public class CrybtManager : MonoBehaviour
         if (scoredCombinations.Contains(
             combinationID))
         {
-            Debug.Log(
+            GameLog.Info(
                 "This combination has already been scored."
             );
 
             ClearPlay();
 
+            // ClearPlay() changes what is on the table, so the
+            // HUD has to be told. The original code returned
+            // here without refreshing, which left the display
+            // showing state that no longer matched the board.
+            RefreshHud();
+
             return;
         }
 
+        FillScoringBuffer(Play);
+
         int points =
-            CalculateCombination(
-                Play
+            CrybtScoring.ScoreCombination(
+                scoringBuffer,
+                rules
             );
 
         if (points <= 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "That is not a scoring combination."
             );
 
             ClearPlay();
+
+            RefreshHud();
 
             return;
         }
@@ -1008,24 +1216,22 @@ public class CrybtManager : MonoBehaviour
         encounterScore +=
             points;
 
-        Debug.Log(
+        GameLog.Info(
             "Combination scored "
             + points
             + " points."
         );
 
-        Debug.Log(
+        GameLog.Info(
             "Encounter Score: "
             + encounterScore
         );
 
         if (Monster.Count > 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "Monster AP: "
-                + GetMonsterAP(
-                    Monster[0]
-                )
+                + GetMonsterAttackPower(Monster[0])
                 + " | Player Score: "
                 + encounterScore
             );
@@ -1033,7 +1239,29 @@ public class CrybtManager : MonoBehaviour
 
         ClearPlay();
 
-        UpdateDisplays();
+        RefreshHud();
+    }
+
+
+    // =========================================================
+    // SCORING BUFFER
+    // =========================================================
+    //
+    // Converts Card components into the plain CardValue data
+    // that CrybtScoring works with.
+
+    private void FillScoringBuffer(List<Card> cards)
+    {
+        scoringBuffer.Clear();
+
+        for (int i = 0;
+            i < cards.Count;
+            i++)
+        {
+            scoringBuffer.Add(
+                cards[i].ToCardValue()
+            );
+        }
     }
 
 
@@ -1091,286 +1319,6 @@ public class CrybtManager : MonoBehaviour
 
 
     // =========================================================
-    // CALCULATE COMBINATION
-    // =========================================================
-    //
-    // IMPORTANT:
-    //
-    // The EXACT cards selected by the player must form
-    // the scoring combination.
-    //
-    // The code does NOT search through a large random
-    // selection looking for smaller hidden combinations.
-    //
-    // Examples:
-    //
-    // 5 + King
-    // = 15
-    // = 2 points
-    //
-    // 7 + 7
-    // = Pair
-    // = 2 points
-    //
-    // 7 + 7 + 7
-    // = Triple
-    // = 6 points
-    //
-    // 2 + 3 + 4
-    // = Run
-    // = 3 points
-    //
-    // 2 + 3 + 4 + King
-    // = NOT a run
-    //
-    // =========================================================
-
-    private int CalculateCombination(
-        List<Card> cards)
-    {
-        if (cards == null ||
-            cards.Count == 0)
-        {
-            return 0;
-        }
-
-        int points = 0;
-
-
-        // =====================================================
-        // FIFTEEN
-        // =====================================================
-        //
-        // The entire selected group must total exactly 15.
-
-        int total = 0;
-
-        for (int i = 0;
-            i < cards.Count;
-            i++)
-        {
-            total +=
-                cards[i].GetValue();
-        }
-
-        if (cards.Count >= 2 &&
-            total == 15)
-        {
-            points += 2;
-
-            Debug.Log(
-                "Fifteen! +2"
-            );
-        }
-
-
-        // =====================================================
-        // PAIR / TRIPLE / FOUR OF A KIND
-        // =====================================================
-        //
-        // ALL selected cards must have the same rank.
-        //
-        // 2 cards:
-        // 1 pair = 2 points
-        //
-        // 3 cards:
-        // 3 pairs = 6 points
-        //
-        // 4 cards:
-        // 6 pairs = 12 points
-
-        if (cards.Count >= 2 &&
-            cards.Count <= 4 &&
-            AllSameRank(cards))
-        {
-            int pairCount =
-                (cards.Count *
-                (cards.Count - 1))
-                / 2;
-
-            int pairPoints =
-                pairCount * 2;
-
-            points +=
-                pairPoints;
-
-            Debug.Log(
-                "Matching ranks! +"
-                + pairPoints
-            );
-        }
-
-
-        // =====================================================
-        // RUN
-        // =====================================================
-        //
-        // The ENTIRE selected group must be consecutive.
-        //
-        // Ace = 1
-        // Jack = 11
-        // Queen = 12
-        // King = 13
-
-        if (cards.Count >= 3 &&
-            IsRun(cards))
-        {
-            points +=
-                cards.Count;
-
-            Debug.Log(
-                "Run of "
-                + cards.Count
-                + "! +"
-                + cards.Count
-            );
-        }
-
-
-        // =====================================================
-        // FLUSH
-        // =====================================================
-        //
-        // The entire selected group must be the same suit.
-        //
-        // 4-card Flush = 4
-        // 5-card Flush = 5
-
-        if (cards.Count == 4 &&
-            IsFlush(cards))
-        {
-            points += 4;
-
-            Debug.Log(
-                "Four-card Flush! +4"
-            );
-        }
-
-        else if (cards.Count == 5 &&
-                 IsFlush(cards))
-        {
-            points += 5;
-
-            Debug.Log(
-                "Five-card Flush! +5"
-            );
-        }
-
-
-        Debug.Log(
-            "Combination total: "
-            + points
-        );
-
-        return points;
-    }
-
-
-    // =========================================================
-    // ALL SAME RANK
-    // =========================================================
-
-    private bool AllSameRank(
-        List<Card> cards)
-    {
-        if (cards == null ||
-            cards.Count < 2)
-        {
-            return false;
-        }
-
-        int rank =
-            cards[0].GetRank();
-
-        for (int i = 1;
-            i < cards.Count;
-            i++)
-        {
-            if (cards[i].GetRank()
-                != rank)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-    // =========================================================
-    // RUN CHECK
-    // =========================================================
-
-    private bool IsRun(
-        List<Card> cards)
-    {
-        if (cards == null ||
-            cards.Count < 3)
-        {
-            return false;
-        }
-
-        List<int> ranks =
-            new List<int>();
-
-        for (int i = 0;
-            i < cards.Count;
-            i++)
-        {
-            ranks.Add(
-                cards[i].GetRank()
-            );
-        }
-
-        ranks.Sort();
-
-        for (int i = 1;
-            i < ranks.Count;
-            i++)
-        {
-            if (ranks[i]
-                != ranks[i - 1] + 1)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-    // =========================================================
-    // FLUSH CHECK
-    // =========================================================
-
-    private bool IsFlush(
-        List<Card> cards)
-    {
-        if (cards == null ||
-            cards.Count == 0)
-        {
-            return false;
-        }
-
-        int suit =
-            cards[0].GetSuit();
-
-        for (int i = 1;
-            i < cards.Count;
-            i++)
-        {
-            if (cards[i].GetSuit()
-                != suit)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-    // =========================================================
     // FINISH SCORING
     // =========================================================
 
@@ -1387,7 +1335,7 @@ public class CrybtManager : MonoBehaviour
         currentStage =
             EncounterStage.ResolvingEncounter;
 
-        UpdateEncounterButtons();
+        RefreshHud();
 
         ResolveEncounter();
     }
@@ -1401,34 +1349,25 @@ public class CrybtManager : MonoBehaviour
     {
         if (Monster.Count == 0)
         {
-            Debug.Log(
-                "ERROR: No Monster exists."
+            GameLog.Error(
+                "No Monster exists."
             );
 
             return;
         }
 
-        int monsterAP =
-            GetMonsterAP(
-                Monster[0]
-            );
-
-        // Damage =
-        // Monster AP - Combination Points
+        int monsterAttackPower =
+            GetMonsterAttackPower(Monster[0]);
 
         int damage =
-            monsterAP
-            - encounterScore;
-
-        damage =
-            Mathf.Max(
-                0,
-                damage
+            CrybtCombat.DamageTaken(
+                monsterAttackPower,
+                encounterScore
             );
 
-        Debug.Log(
+        GameLog.Info(
             "Monster AP: "
-            + monsterAP
+            + monsterAttackPower
             + " | Combination Points: "
             + encounterScore
             + " | Damage: "
@@ -1436,24 +1375,15 @@ public class CrybtManager : MonoBehaviour
         );
 
 
-        // =====================================================
-        // ZERO DAMAGE
-        // =====================================================
-
-        if (damage == 0)
+        if (CrybtCombat.IsMonsterDefeated(damage))
         {
-            Debug.Log(
+            GameLog.Info(
                 "Monster AP matched! "
                 + "Monster goes to Graveyard."
             );
 
             DefeatMonster();
         }
-
-
-        // =====================================================
-        // DAMAGE
-        // =====================================================
 
         else
         {
@@ -1479,8 +1409,8 @@ public class CrybtManager : MonoBehaviour
     {
         if (Monster.Count == 0)
         {
-            Debug.Log(
-                "ERROR: No Monster to move to Graveyard."
+            GameLog.Error(
+                "No Monster to move to Graveyard."
             );
 
             return;
@@ -1495,12 +1425,12 @@ public class CrybtManager : MonoBehaviour
             defeatedMonster
         );
 
-        Debug.Log(
+        GameLog.Info(
             defeatedMonster.gameObject.name
             + " moved to Graveyard."
         );
 
-        Debug.Log(
+        GameLog.Info(
             "Graveyard now contains "
             + Graveyard.Count
             + " card(s)."
@@ -1518,7 +1448,7 @@ public class CrybtManager : MonoBehaviour
         Health -=
             damage;
 
-        Debug.Log(
+        GameLog.Info(
             "Player takes "
             + damage
             + " damage."
@@ -1533,7 +1463,7 @@ public class CrybtManager : MonoBehaviour
             return;
         }
 
-        UpdateDisplays();
+        RefreshHud();
     }
 
 
@@ -1552,9 +1482,9 @@ public class CrybtManager : MonoBehaviour
         currentStage =
             EncounterStage.EndingEncounter;
 
-        UpdateEncounterButtons();
+        displayedMonsterAttackPower = null;
 
-        ClearMonsterAPDisplay();
+        RefreshHud();
 
         ClearPlay();
 
@@ -1622,7 +1552,7 @@ public class CrybtManager : MonoBehaviour
         // =====================================================
 
         if (encounterNumber >=
-            encountersPerCrawl)
+            rules.EncountersPerCrawl)
         {
             EndCrawl();
         }
@@ -1635,20 +1565,20 @@ public class CrybtManager : MonoBehaviour
 
 
     // =========================================================
-    // DRAW FIVE
+    // DRAW HAND
     // =========================================================
 
-    private void DrawFive()
+    private void DrawHand()
     {
         for (int i = 0;
-            i < 5;
+            i < rules.HandSize;
             i++)
         {
             CheckDeck();
 
             if (Deck.Count == 0)
             {
-                Debug.Log(
+                GameLog.Info(
                     "No more cards available."
                 );
 
@@ -1676,7 +1606,7 @@ public class CrybtManager : MonoBehaviour
 
         if (Deck.Count == 0)
         {
-            Debug.Log(
+            GameLog.Info(
                 "No card available for final Offering draw."
             );
 
@@ -1689,7 +1619,7 @@ public class CrybtManager : MonoBehaviour
 
         Deck.RemoveAt(0);
 
-        Debug.Log(
+        GameLog.Info(
             "Final Offering card drawn."
         );
 
@@ -1703,74 +1633,16 @@ public class CrybtManager : MonoBehaviour
 
     private int CalculateOfferingPoints()
     {
-        int points = 0;
+        FillScoringBuffer(Offering);
 
+        int points =
+            CrybtScoring.ScoreOfferingPile(
+                scoringBuffer,
+                Graveyard.Count,
+                rules
+            );
 
-        // =====================================================
-        // FIFTEENS
-        // =====================================================
-        //
-        // Offering scoring searches every subset because
-        // the Offering is being scored as a whole pile,
-        // unlike manually confirmed encounter combinations.
-
-        int subsetCount =
-            1 << Offering.Count;
-
-        for (int mask = 1;
-            mask < subsetCount;
-            mask++)
-        {
-            int total = 0;
-
-            for (int i = 0;
-                i < Offering.Count;
-                i++)
-            {
-                if ((mask & (1 << i))
-                    != 0)
-                {
-                    total +=
-                        Offering[i].GetValue();
-                }
-            }
-
-            if (total == 15)
-            {
-                points += 2;
-            }
-        }
-
-
-        // =====================================================
-        // PAIRS
-        // =====================================================
-
-        for (int i = 0;
-            i < Offering.Count;
-            i++)
-        {
-            for (int j = i + 1;
-                j < Offering.Count;
-                j++)
-            {
-                if (Offering[i].GetRank()
-                    == Offering[j].GetRank())
-                {
-                    points += 2;
-                }
-            }
-        }
-
-
-        // =====================================================
-        // GRAVEYARD BONUS
-        // =====================================================
-
-        points +=
-            Graveyard.Count;
-
-        Debug.Log(
+        GameLog.Info(
             "Offering scored "
             + points
             + " spendable points."
@@ -1795,7 +1667,7 @@ public class CrybtManager : MonoBehaviour
 
         if (offeringPoints < cost)
         {
-            Debug.Log(
+            GameLog.Info(
                 "Not enough Offering Points."
             );
 
@@ -1805,49 +1677,92 @@ public class CrybtManager : MonoBehaviour
         offeringPoints -=
             cost;
 
-        Debug.Log(
+        GameLog.Info(
             "Spent "
             + cost
             + " Offering Points."
         );
 
-        Debug.Log(
+        GameLog.Info(
             "Remaining Offering Points: "
             + offeringPoints
         );
 
-        UpdateDisplays();
+        RefreshHud();
 
         return true;
     }
 
 
     // =========================================================
-    // BOON 1 - TORCH
+    // BUY BOON
     // =========================================================
+    //
+    // Replaces six near-identical BuyBoonN() bodies.
+    //
+    // The numbered methods below are kept ONLY because the
+    // Boon Shop buttons are wired to them by name in the Crybt
+    // scene. Do not remove them without re-wiring those
+    // Button OnClick entries.
 
-    public void BuyBoon1()
+    public void BuyBoon(BoonId id)
     {
-        const int cost = 2;
+        BoonDefinition boon =
+            boonShop.Find(id);
 
-        if (nextCrawlTorch)
+        if (boon == null)
         {
-            Debug.Log(
-                "Torch already purchased for next Crawl."
+            GameLog.Error(
+                "No BoonDefinition asset assigned for "
+                + id
+                + ". Add it to the Boon Shop catalogue "
+                + "on CrybtManager."
             );
 
             return;
         }
 
-        if (!SpendOfferingPoints(cost))
+        if (boonShop.IsPurchased(id))
+        {
+            GameLog.Info(
+                boon.DisplayName
+                + " already purchased for the next Crawl."
+            );
+
+            return;
+        }
+
+
+        // =====================================================
+        // UNIMPLEMENTED BOONS
+        // =====================================================
+        //
+        // Boons 2-6 previously took the player's points and
+        // did nothing at all, because nothing ever read their
+        // flags. Refuse the sale until the effect exists.
+
+        if (!boon.Implemented)
+        {
+            GameLog.Warning(
+                boon.DisplayName
+                + " has no gameplay effect yet, so it cannot "
+                + "be purchased. Tick 'Implemented' on the "
+                + "asset once its effect is wired up."
+            );
+
+            return;
+        }
+
+        if (!SpendOfferingPoints(boon.Cost))
         {
             return;
         }
 
-        nextCrawlTorch = true;
+        boonShop.MarkPurchased(id);
 
-        Debug.Log(
-            "Torch purchased for Crawl "
+        GameLog.Info(
+            boon.DisplayName
+            + " purchased for Crawl "
             + (crawlNumber + 1)
             + "."
         );
@@ -1855,153 +1770,22 @@ public class CrybtManager : MonoBehaviour
 
 
     // =========================================================
-    // BOON 2
+    // BOON BUTTON HOOKS
     // =========================================================
+    //
+    // Scene Button OnClick targets. Keep the names.
 
-    public void BuyBoon2()
-    {
-        const int cost = 4;
+    public void BuyBoon1() => BuyBoon(BoonId.Torch);
 
-        if (nextCrawlWardingSigil)
-        {
-            Debug.Log(
-                "Boon 2 already purchased."
-            );
+    public void BuyBoon2() => BuyBoon(BoonId.WardingSigil);
 
-            return;
-        }
+    public void BuyBoon3() => BuyBoon(BoonId.BoneCharm);
 
-        if (!SpendOfferingPoints(cost))
-        {
-            return;
-        }
+    public void BuyBoon4() => BuyBoon(BoonId.HolyWater);
 
-        nextCrawlWardingSigil = true;
+    public void BuyBoon5() => BuyBoon(BoonId.BlackGrimoire);
 
-        Debug.Log(
-            "Warding Sigil purchased."
-        );
-    }
-
-
-    // =========================================================
-    // BOON 3
-    // =========================================================
-
-    public void BuyBoon3()
-    {
-        const int cost = 6;
-
-        if (nextCrawlBoneCharm)
-        {
-            Debug.Log(
-                "Boon 3 already purchased."
-            );
-
-            return;
-        }
-
-        if (!SpendOfferingPoints(cost))
-        {
-            return;
-        }
-
-        nextCrawlBoneCharm = true;
-
-        Debug.Log(
-            "Bone Charm purchased."
-        );
-    }
-
-
-    // =========================================================
-    // BOON 4
-    // =========================================================
-
-    public void BuyBoon4()
-    {
-        const int cost = 8;
-
-        if (nextCrawlHolyWater)
-        {
-            Debug.Log(
-                "Boon 4 already purchased."
-            );
-
-            return;
-        }
-
-        if (!SpendOfferingPoints(cost))
-        {
-            return;
-        }
-
-        nextCrawlHolyWater = true;
-
-        Debug.Log(
-            "Holy Water purchased."
-        );
-    }
-
-
-    // =========================================================
-    // BOON 5
-    // =========================================================
-
-    public void BuyBoon5()
-    {
-        const int cost = 10;
-
-        if (nextCrawlBlackGrimoire)
-        {
-            Debug.Log(
-                "Boon 5 already purchased."
-            );
-
-            return;
-        }
-
-        if (!SpendOfferingPoints(cost))
-        {
-            return;
-        }
-
-        nextCrawlBlackGrimoire = true;
-
-        Debug.Log(
-            "Black Grimoire purchased."
-        );
-    }
-
-
-    // =========================================================
-    // BOON 6
-    // =========================================================
-
-    public void BuyBoon6()
-    {
-        const int cost = 12;
-
-        if (nextCrawlBrokenMirror)
-        {
-            Debug.Log(
-                "Boon 6 already purchased."
-            );
-
-            return;
-        }
-
-        if (!SpendOfferingPoints(cost))
-        {
-            return;
-        }
-
-        nextCrawlBrokenMirror = true;
-
-        Debug.Log(
-            "Broken Mirror purchased."
-        );
-    }
+    public void BuyBoon6() => BuyBoon(BoonId.BrokenMirror);
 
 
     // =========================================================
@@ -2016,72 +1800,28 @@ public class CrybtManager : MonoBehaviour
             return;
         }
 
-        if (Boons != null)
-        {
-            Boons.SetActive(false);
-        }
-
         CleanUpCrawl();
 
 
-        // =====================================================
-        // CURRENT BOONS EXPIRE
-        // =====================================================
-
-        boon1Torch = false;
-        boon2WardingSigil = false;
-        boon3BoneCharm = false;
-        boon4HolyWater = false;
-        boon5BlackGrimoire = false;
-        boon6BrokenMirror = false;
+        // Current boons expire, purchased boons become active,
+        // and the purchase list resets - all three steps in one
+        // place instead of three copy-paste blocks.
+        boonShop.AdvanceToNextCrawl();
 
 
-        // =====================================================
-        // PURCHASED BOONS BECOME ACTIVE
-        // =====================================================
-
-        boon1Torch =
-            nextCrawlTorch;
-
-        boon2WardingSigil =
-            nextCrawlWardingSigil;
-
-        boon3BoneCharm =
-            nextCrawlBoneCharm;
-
-        boon4HolyWater =
-            nextCrawlHolyWater;
-
-        boon5BlackGrimoire =
-            nextCrawlBlackGrimoire;
-
-        boon6BrokenMirror =
-            nextCrawlBrokenMirror;
-
-
-        // =====================================================
-        // RESET NEXT CRAWL PURCHASES
-        // =====================================================
-
-        nextCrawlTorch = false;
-        nextCrawlWardingSigil = false;
-        nextCrawlBoneCharm = false;
-        nextCrawlHolyWater = false;
-        nextCrawlBlackGrimoire = false;
-        nextCrawlBrokenMirror = false;
-
-
-        // Unspent points do not carry over.
-        offeringPoints = 0;
+        // Unspent points do not carry over unless the rules
+        // asset says they do.
+        if (!rules.UnspentPointsCarryOver)
+        {
+            offeringPoints = 0;
+        }
 
         crawlNumber++;
 
         currentStage =
             EncounterStage.StartingEncounter;
 
-        UpdateEncounterButtons();
-
-        UpdateDisplays();
+        RefreshHud();
 
         StartCrawl();
     }
@@ -2169,7 +1909,7 @@ public class CrybtManager : MonoBehaviour
 
         MoveCards();
 
-        Debug.Log(
+        GameLog.Info(
             "Discard reshuffled into Deck."
         );
     }
@@ -2184,18 +1924,11 @@ public class CrybtManager : MonoBehaviour
         currentStage =
             EncounterStage.GameOver;
 
-        ClearMonsterAPDisplay();
+        displayedMonsterAttackPower = null;
 
-        if (Boons != null)
-        {
-            Boons.SetActive(false);
-        }
+        RefreshHud();
 
-        UpdateEncounterButtons();
-
-        UpdateDisplays();
-
-        Debug.Log(
+        GameLog.Info(
             "GAME OVER - Reached Crawl "
             + crawlNumber
         );
@@ -2203,106 +1936,78 @@ public class CrybtManager : MonoBehaviour
 
 
     // =========================================================
-    // UPDATE UI
+    // CARD ROTATION
     // =========================================================
+    //
+    // One rotation per card. Starting a new one cancels the
+    // old one instead of letting two coroutines fight over the
+    // same transform.
 
-    private void UpdateDisplays()
+    private void RotateTo(
+        Card card,
+        Quaternion targetRotation)
     {
-        if (HealthDisplay != null)
+        if (card == null)
         {
-            HealthDisplay.text =
-                Health.ToString();
+            return;
         }
 
-        if (ModifierDisplay != null)
+        // Already there - nothing to animate.
+        if (Quaternion.Angle(
+                card.transform.localRotation,
+                targetRotation)
+            < 0.01f)
         {
-            ModifierDisplay.text =
-                Modifier.ToString();
+            return;
         }
 
-        if (ScoreDisplay != null)
-        {
-            ScoreDisplay.text =
-                encounterScore.ToString();
-        }
+        StopRotation(card);
 
-        if (EncounterDisplay != null)
-        {
-            EncounterDisplay.text =
-                encounterNumber
-                + " / "
-                + encountersPerCrawl;
-        }
-
-        if (CrawlDisplay != null)
-        {
-            CrawlDisplay.text =
-                crawlNumber.ToString();
-        }
-
-
-        // =====================================================
-        // OFFERING POINTS
-        // =====================================================
-        //
-        // Only visible during the Boon Shop.
-
-        if (OfferingPointsDisplay != null)
-        {
-            bool showOfferingPoints =
-                currentStage ==
-                EncounterStage.ChoosingBoons;
-
-            OfferingPointsDisplay.gameObject.SetActive(
-                showOfferingPoints
+        rotationRoutines[card] =
+            StartCoroutine(
+                RotateCard(
+                    card,
+                    targetRotation
+                )
             );
-
-            if (showOfferingPoints)
-            {
-                OfferingPointsDisplay.text =
-                    offeringPoints.ToString();
-            }
-        }
     }
 
-    private System.Collections.IEnumerator RotateCard(
-    Card card,
-    Quaternion targetRotation)
+
+    private void StopRotation(Card card)
+    {
+        if (!rotationRoutines.TryGetValue(
+                card,
+                out Coroutine running))
+        {
+            return;
+        }
+
+        if (running != null)
+        {
+            StopCoroutine(running);
+        }
+
+        rotationRoutines.Remove(card);
+    }
+
+
+    private IEnumerator RotateCard(
+        Card card,
+        Quaternion targetRotation)
     {
         Quaternion startRotation =
             card.transform.localRotation;
 
-        float duration = 0.25f;
         float timer = 0f;
 
-        while (timer < duration)
+        while (timer < rotationDuration)
         {
             timer += Time.deltaTime;
 
-            float t =
-                Mathf.Clamp01(
-                    timer / duration
+            float easedT =
+                Easing.QuadInOut(
+                    timer / rotationDuration
                 );
-
-            // Quadratic ease in/out.
-            // Matches the feel of the existing
-            // card movement animation.
-            float easedT;
-
-            if (t < 0.5f)
-            {
-                easedT =
-                    2f * t * t;
-            }
-            else
-            {
-                easedT =
-                    1f -
-                    Mathf.Pow(
-                        -2f * t + 2f,
-                        2f
-                    ) / 2f;
-            }
 
             card.transform.localRotation =
                 Quaternion.LerpUnclamped(
@@ -2316,6 +2021,8 @@ public class CrybtManager : MonoBehaviour
 
         card.transform.localRotation =
             targetRotation;
+
+        rotationRoutines.Remove(card);
     }
 
 
@@ -2426,9 +2133,14 @@ public class CrybtManager : MonoBehaviour
             Offering[i].DeactivateCard();
         }
 
+
         // =====================================================
         // GRAVEYARD
         // =====================================================
+
+        bool choosingFromGraveyard =
+            currentStage ==
+            EncounterStage.ChoosingHeroFromGraveyard;
 
         for (int i = 0;
             i < Graveyard.Count;
@@ -2452,22 +2164,15 @@ public class CrybtManager : MonoBehaviour
             );
 
 
-            // =====================================================
-            // SELECTING A HERO FROM GRAVEYARD
-            // =====================================================
-
-            if (currentStage ==
-                EncounterStage.ChoosingHeroFromGraveyard)
+            if (choosingFromGraveyard)
             {
                 // Smoothly rotate sideways.
-                StartCoroutine(
-                    RotateCard(
-                        Graveyard[i],
-                        Quaternion.Euler(
-                            0f,
-                            0f,
-                            90f
-                        )
+                RotateTo(
+                    Graveyard[i],
+                    Quaternion.Euler(
+                        0f,
+                        0f,
+                        90f
                     )
                 );
 
@@ -2477,20 +2182,13 @@ public class CrybtManager : MonoBehaviour
                 Graveyard[i].ActivateCard();
             }
 
-
-            // =====================================================
-            // NORMAL GRAVEYARD DISPLAY
-            // =====================================================
-
             else
             {
                 // Keep the cards vertically spread,
                 // but smoothly return them upright.
-                StartCoroutine(
-                    RotateCard(
-                        Graveyard[i],
-                        Quaternion.identity
-                    )
+                RotateTo(
+                    Graveyard[i],
+                    Quaternion.identity
                 );
 
                 Graveyard[i].DeactivateCard();
