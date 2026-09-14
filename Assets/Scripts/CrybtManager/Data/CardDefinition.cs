@@ -83,9 +83,7 @@ public class CardDefinition : ScriptableObject
     // a literal inside Card.GetValue().
 
     public int PipValue =>
-        rank >= CardConstants.LowestFaceRank
-            ? CardConstants.FaceCardValue
-            : (int)rank;
+        CardConstants.PipValueFor(rank);
 
 
     // =========================================================

@@ -35,6 +35,10 @@ public static class CardDefinitionGenerator
     private const string DeckAssetPath =
         "Assets/GameData/Cards/StandardDeck.asset";
 
+    // Root of the prefab variant chain; used as the one
+    // prefab every runtime card is instantiated from.
+    private const string TemplatePrefabName = "1_Heart.prefab";
+
 
     [MenuItem("Tools/Crybt/Generate Card Definitions From Prefabs")]
     private static void Generate()
@@ -171,24 +175,101 @@ public static class CardDefinitionGenerator
 
 
         // =====================================================
-        // BUILD THE DECK ASSET
+        // BUILD THE DECK TABLE
         // =====================================================
+        //
+        // Self-contained: rank, suit and face sprite per row,
+        // so the deck no longer depends on the 52 prefabs or
+        // on the 52 CardDefinition assets above.
+        //
+        // The card BACK is not a row. It is not playable, it
+        // has no rank, and giving it one would put a 53rd card
+        // in a 52 card deck.
+
+        List<DeckEntry> entries = new List<DeckEntry>();
+
+        Sprite backSprite = null;
+
+        GameObject template = null;
+
+        for (int i = 0; i < prefabGuids.Length; i++)
+        {
+            string path =
+                AssetDatabase.GUIDToAssetPath(prefabGuids[i]);
+
+            GameObject prefab =
+                AssetDatabase.LoadAssetAtPath<GameObject>(path);
+
+            if (prefab == null)
+            {
+                continue;
+            }
+
+            Card card = prefab.GetComponent<Card>();
+
+            if (card == null)
+            {
+                continue;
+            }
+
+            Sprite face = FaceSpriteOf(prefab);
+
+            if (card.EditorRawSuit == CardSuit.Back)
+            {
+                backSprite = face;
+
+                continue;
+            }
+
+            DeckEntry entry = new DeckEntry();
+
+            entry.EditorInitialise(
+                card.EditorRawRank,
+                card.EditorRawSuit,
+                face
+            );
+
+            entries.Add(entry);
+
+            // Any card prefab works as the template - every
+            // per-card difference is overwritten at bind time.
+            // Prefer the one at the root of the variant chain.
+            if (template == null ||
+                path.EndsWith(TemplatePrefabName))
+            {
+                template = prefab;
+            }
+        }
+
+        entries.Sort(
+            (a, b) =>
+            {
+                int bySuit = a.Suit.CompareTo(b.Suit);
+
+                return bySuit != 0
+                    ? bySuit
+                    : a.Rank.CompareTo(b.Rank);
+            }
+        );
 
         DeckDefinition deck =
             AssetDatabase.LoadAssetAtPath<DeckDefinition>(DeckAssetPath);
 
-        if (deck == null)
+        bool deckIsNew = deck == null;
+
+        if (deckIsNew)
         {
             deck = ScriptableObject.CreateInstance<DeckDefinition>();
+        }
 
-            deck.EditorSetCards(generated);
+        deck.EditorSet(template, backSprite, entries);
 
+        if (deckIsNew)
+        {
             AssetDatabase.CreateAsset(deck, DeckAssetPath);
         }
         else
         {
-            deck.EditorSetCards(generated);
-
             EditorUtility.SetDirty(deck);
         }
 
@@ -202,8 +283,39 @@ public static class CardDefinitionGenerator
             + created + " created, "
             + updated + " updated, "
             + skipped + " prefab(s) had no Card component. "
-            + "Deck asset contains " + generated.Count + " card(s)."
+            + "Deck table: " + entries.Count + " card(s), "
+            + (backSprite != null ? "back sprite found" : "NO BACK SPRITE")
+            + ", template = "
+            + (template != null ? template.name : "NONE")
+            + "."
         );
+
+        if (entries.Count != 52)
+        {
+            Debug.LogWarning(
+                "[Crybt] Expected 52 cards, generated "
+                + entries.Count
+                + ". Check for missing or duplicate prefabs."
+            );
+        }
+    }
+
+
+    // =========================================================
+    // FACE SPRITE OF
+    // =========================================================
+    //
+    // The face is the Image on the prefab ROOT. The child
+    // "Button" object has an Image too, which is the click
+    // target, not the art.
+
+    private static Sprite FaceSpriteOf(GameObject prefab)
+    {
+        Image image = prefab.GetComponent<Image>();
+
+        return image != null
+            ? image.sprite
+            : null;
     }
 
 

@@ -39,6 +39,12 @@ public class Card : MonoBehaviour,
 
     [SerializeField] private Button button;
 
+    [SerializeField]
+    [Tooltip("The card's face. Left empty, the Image on this " +
+             "object is used - which is where the prefab " +
+             "variants put it.")]
+    private Image faceImage;
+
 
     // =========================================================
     // HOVER / SELECTION
@@ -148,6 +154,59 @@ public class Card : MonoBehaviour,
     public void Bind(CardDefinition cardDefinition)
     {
         definition = cardDefinition;
+
+        if (cardDefinition != null)
+        {
+            ApplyFace(cardDefinition.Face);
+        }
+    }
+
+
+    // =========================================================
+    // BIND DECK ROW
+    // =========================================================
+    //
+    // Used when the deck is built at runtime from a
+    // DeckDefinition, so a card needs no asset of its own.
+    //
+    // Writes the serialized fields directly rather than going
+    // through a definition, which is what lets one prefab
+    // become any card.
+
+    public void Bind(
+        CardRank cardRank,
+        CardSuit cardSuit,
+        Sprite face)
+    {
+        definition = null;
+
+        rank = cardRank;
+        suit = cardSuit;
+
+        // GetValue() reads this, so it has to be kept in step
+        // with the rank or every face card scores as 0.
+        value = CardConstants.PipValueFor(cardRank);
+
+        ApplyFace(face);
+    }
+
+
+    private void ApplyFace(Sprite face)
+    {
+        if (face == null)
+        {
+            return;
+        }
+
+        if (faceImage == null)
+        {
+            faceImage = GetComponent<Image>();
+        }
+
+        if (faceImage != null)
+        {
+            faceImage.sprite = face;
+        }
     }
 
 

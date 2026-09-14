@@ -34,4 +34,20 @@ public static class CardConstants
     public const CardRank LowestFaceRank = CardRank.Jack;
 
     public const int FaceCardValue = 10;
+
+
+    // =========================================================
+    // PIP VALUE FOR
+    // =========================================================
+    //
+    // The single place that knows a face card is worth 10.
+    // Used by CardDefinition and by cards built at runtime from
+    // a DeckDefinition row, so the two cannot disagree.
+
+    public static int PipValueFor(CardRank rank)
+    {
+        return rank >= LowestFaceRank
+            ? FaceCardValue
+            : (int)rank;
+    }
 }

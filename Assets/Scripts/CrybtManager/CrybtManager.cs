@@ -240,6 +240,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
         EnsureBoons();
 
+        EnsureDeck();
+
         EnsureHud();
 
         BindCards();
@@ -269,6 +271,19 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
     // Shipped copies of the tuning data, loaded when nothing is
     // wired up in the Inspector. Under Resources/ so they load
     // with no scene reference and are guaranteed into the build.
+    [SerializeField]
+    [Tooltip("Optional. Builds the deck at runtime when the " +
+             "Deck list below is empty, so the 52 card objects " +
+             "can be deleted from the scene.")]
+    private DeckDefinition deckDefinition;
+
+    [SerializeField]
+    [Tooltip("Optional parent for runtime-built cards. " +
+             "Defaults to the Deck slot, which is where the " +
+             "scene-authored cards already live.")]
+    private Transform cardParent;
+
+
     private const string RulesResourcePath = "Crybt/CrybtRules";
 
     private const string BoonsResourceFolder = "Crybt/Boons";
@@ -336,6 +351,114 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             + "no boon assets were found in Resources/"
             + BoonsResourceFolder
             + ". No boon can be purchased."
+        );
+    }
+
+
+    // =========================================================
+    // ENSURE DECK
+    // =========================================================
+    //
+    // Builds the deck from a DeckDefinition when the scene has
+    // no cards of its own.
+    //
+    // The scene ALWAYS wins. While the 52 card objects are
+    // still in the Deck list this does nothing at all, which is
+    // what makes the migration safe to land before the scene is
+    // touched: assign the asset, verify, then delete the
+    // objects and this takes over.
+
+    private void EnsureDeck()
+    {
+        if (Deck == null)
+        {
+            Deck = new List<Card>();
+        }
+
+        if (Deck.Count > 0)
+        {
+            return;
+        }
+
+        if (deckDefinition == null ||
+            deckDefinition.Count == 0)
+        {
+            GameLog.Error(
+                "CrybtManager has no cards. The Deck list is "
+                + "empty and no DeckDefinition is assigned, so "
+                + "there is nothing to deal. "
+                + "FIX: assign a Deck asset, or run "
+                + "Tools > Crybt > Generate Card Definitions "
+                + "From Prefabs to create one."
+            );
+
+            return;
+        }
+
+        GameObject template = deckDefinition.CardPrefab;
+
+        if (template == null)
+        {
+            GameLog.Error(
+                "The Deck asset has no card prefab assigned, "
+                + "so no card can be built."
+            );
+
+            return;
+        }
+
+        Transform parent =
+            cardParent != null
+                ? cardParent
+                : (DeckSlot != null
+                    ? DeckSlot.transform
+                    : transform);
+
+        IReadOnlyList<DeckEntry> entries =
+            deckDefinition.Cards;
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            DeckEntry entry = entries[i];
+
+            if (entry == null)
+            {
+                continue;
+            }
+
+            GameObject built =
+                Instantiate(template, parent);
+
+            built.name =
+                entry.Rank + "_" + entry.Suit;
+
+            Card card =
+                built.GetComponent<Card>();
+
+            if (card == null)
+            {
+                GameLog.Error(
+                    "The Deck asset's card prefab has no Card "
+                    + "component."
+                );
+
+                Destroy(built);
+
+                return;
+            }
+
+            card.Bind(
+                entry.Rank,
+                entry.Suit,
+                entry.Face
+            );
+
+            Deck.Add(card);
+        }
+
+        GameLog.Info(
+            "Built " + Deck.Count + " card(s) from "
+            + deckDefinition.name + "."
         );
     }
 
