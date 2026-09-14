@@ -25,10 +25,11 @@ legacy or unreachable.
 | `Assets/Scripts/Core/Extensions/UiVisibilityExtensions.cs` | `SetVisible`, used by `EncounterHud` |
 | `Assets/Scripts/Core/Editor/DefaultDataAssetGenerator.cs` | Creates `CrybtRules` + the six `BoonDefinition` assets |
 | `Assets/csc.rsp` | Project-wide `CS0649` suppression — **options only, never comments** (see below) |
+| `Assets/Resources/Crybt/**` | `CrybtRules` and the six `BoonDefinition` assets, loaded at runtime when unassigned |
 | `Assets/Scenes/Crybt.unity` | Via the Editor only — never by editing YAML |
 | `docs/**` | This index and the player's guide |
 
-That is the entire surface. Four files in `Core/`, one scene, one folder.
+That is the entire surface. Four files in `Core/`, one scene, two folders.
 
 > **`csc.rsp` has no comment syntax in Unity 2020.3.** Unity splits the file on
 > whitespace and passes every token to the compiler as an argument — it does
@@ -106,8 +107,11 @@ those scenes is live; everything else is not. The walk was:
 
 Two things this method is deliberately careful about:
 
-- **`Resources.Load` would break it.** It was checked: no game script calls it.
-  Only vendor editor code does. The asset graph is therefore authoritative.
+- **`Resources.Load` is used in exactly one place.** `CrybtManager` loads the
+  shipped `CrybtRules` and boon assets from `Assets/Resources/Crybt/` when the
+  Inspector references are empty. Those assets are therefore live without any
+  scene reference — the walk below would not otherwise see them. Nothing else
+  in the game calls it; the rest of the asset graph is authoritative.
 - **New files have no `.meta` yet.** Files added in this refactor are invisible
   to a GUID walk by construction, so step 5 is what proves them live.
 
@@ -198,7 +202,8 @@ C#, `UnityEvent` persistent calls in scene YAML, animation events (`.anim`
 `functionName`), and Timeline signals. There are no Timeline signal assets and
 no `SignalReceiver` in the project, the five animation events are local effects
 (`Quack`, `Deactivate`, `setPageFlipActive`, `disableCollectable`, `StopQuack`),
-and no game script calls `Resources.Load`. The graph below is complete.
+and the only `Resources.Load` in the game loads Crybt tuning assets, not a
+scene. The graph below is complete.
 
 ```
   [ StoryBook ]  ← build index 0, the entry point
@@ -557,17 +562,27 @@ and prefab YAML must not be edited outside the Editor.
 
 All of these are inside the Crybt scope (§0).
 
-1. Open Unity once so it imports the new files and writes their `.meta` GUIDs.
-2. `Tools > Generate Default Data Assets` — **required, not optional.** Creates
-   `CrybtRules` and the six `BoonDefinition` assets. Without it the boon
-   catalogue is empty and Torch cannot be bought.
-3. Select `CrybtManager` in the `Crybt` scene → assign `Rules` = `CrybtRules`,
-   and `Boon Shop > Catalogue` = the six boon assets.
-4. `Tools > Crybt > Migrate HUD References` → **save the scene.** Until then
-   `CrybtManager.hud` is null and the Crybt HUD will not update.
-5. *(Optional)* `Tools > Crybt > Generate Card Definitions From Prefabs`.
-6. Then delete the legacy `#pragma warning disable 0649, 0169` block in
-   `CrybtManager` and all three editor tools.
+**None of it is required to play.** Every reference now resolves at runtime if
+the Inspector is empty:
+
+- `CrybtRules` and the boons load from `Assets/Resources/Crybt/`.
+- `EncounterHud` is built from the legacy widget fields on first frame.
+
+Doing the wiring properly is still worth it — it makes the values editable in
+the Inspector and lets the fallback code be deleted:
+
+1. Select `CrybtManager` in the `Crybt` scene → assign `Rules` = `CrybtRules`,
+   and `Boon Shop > Catalogue` = the six boon assets from
+   `Assets/Resources/Crybt/Boons/`.
+2. `Tools > Crybt > Migrate HUD References` → **save the scene.**
+3. *(Optional)* `Tools > Crybt > Generate Card Definitions From Prefabs`. Fix
+   `1_Spades Variant.prefab` first — see §8.
+4. Then delete the legacy `#pragma warning disable 0649, 0169` block in
+   `CrybtManager`, the runtime fallbacks, and the three editor tools.
+
+`Tools > Generate Default Data Assets` still exists, but the assets it creates
+are already committed under `Assets/Resources/Crybt/`, so it is now only useful
+for regenerating them from scratch.
 
 Steps that existed before the scope narrowed — assigning `VillageCatalogue` on
 `ProgressTracker`/`CollectableIconManager`, assigning `SoundSettings` on the

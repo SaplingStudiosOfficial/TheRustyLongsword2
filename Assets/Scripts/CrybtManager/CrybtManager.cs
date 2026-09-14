@@ -238,6 +238,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
     {
         EnsureRules();
 
+        EnsureBoons();
+
         EnsureHud();
 
         BindCards();
@@ -264,6 +266,14 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
     // The game should still run if the rules asset has not
     // been wired up yet, but it should say so loudly.
 
+    // Shipped copies of the tuning data, loaded when nothing is
+    // wired up in the Inspector. Under Resources/ so they load
+    // with no scene reference and are guaranteed into the build.
+    private const string RulesResourcePath = "Crybt/CrybtRules";
+
+    private const string BoonsResourceFolder = "Crybt/Boons";
+
+
     private void EnsureRules()
     {
         if (rules != null)
@@ -271,14 +281,62 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             return;
         }
 
+        rules =
+            Resources.Load<CrybtRules>(RulesResourcePath);
+
+        if (rules != null)
+        {
+            return;
+        }
+
         GameLog.Warning(
-            "CrybtManager has no CrybtRules asset assigned. "
-            + "Falling back to built-in defaults. "
-            + "Create one via Assets > Create > Crybt > Rules."
+            "CrybtManager has no CrybtRules asset assigned and "
+            + "none was found at Resources/" + RulesResourcePath
+            + ". Falling back to built-in defaults."
         );
 
         rules =
             ScriptableObject.CreateInstance<CrybtRules>();
+    }
+
+
+    // =========================================================
+    // ENSURE BOONS
+    // =========================================================
+    //
+    // An empty catalogue is not a cosmetic problem: Torch is
+    // the one boon that actually does something, and with no
+    // catalogue it cannot be bought at all.
+
+    private void EnsureBoons()
+    {
+        if (boonShop == null)
+        {
+            return;
+        }
+
+        if (boonShop.Catalogue != null &&
+            boonShop.Catalogue.Count > 0)
+        {
+            return;
+        }
+
+        BoonDefinition[] shipped =
+            Resources.LoadAll<BoonDefinition>(
+                BoonsResourceFolder
+            );
+
+        if (boonShop.FillIfEmpty(shipped))
+        {
+            return;
+        }
+
+        GameLog.Warning(
+            "CrybtManager has an empty Boon Shop catalogue and "
+            + "no boon assets were found in Resources/"
+            + BoonsResourceFolder
+            + ". No boon can be purchased."
+        );
     }
 
 

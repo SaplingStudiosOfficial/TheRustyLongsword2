@@ -55,6 +55,48 @@ public class BoonShop
 
 
     // =========================================================
+    // FILL CATALOGUE IF EMPTY
+    // =========================================================
+    //
+    // An unassigned catalogue is not a harmless default - it
+    // means no boon can be bought, including Torch, which IS
+    // implemented. So the manager loads the shipped assets and
+    // offers them here.
+    //
+    // Anything assigned in the Inspector wins outright: this
+    // does nothing unless the list is genuinely empty.
+
+    public bool FillIfEmpty(BoonDefinition[] defaults)
+    {
+        if (catalogue == null)
+        {
+            catalogue = new List<BoonDefinition>();
+        }
+
+        if (catalogue.Count > 0)
+        {
+            return false;
+        }
+
+        if (defaults == null ||
+            defaults.Length == 0)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < defaults.Length; i++)
+        {
+            if (defaults[i] != null)
+            {
+                catalogue.Add(defaults[i]);
+            }
+        }
+
+        return catalogue.Count > 0;
+    }
+
+
+    // =========================================================
     // LOOKUP
     // =========================================================
 
