@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
@@ -9,10 +9,28 @@ public class Card : MonoBehaviour,
     // =========================================================
     // CARD DATA
     // =========================================================
+    //
+    // MIGRATION IN PROGRESS - see CardDefinition.
+    //
+    // When a definition asset is assigned it wins. When it is
+    // not, these serialized integers are used exactly as
+    // before, so every existing card prefab keeps working
+    // untouched.
+
+    [SerializeField]
+    [Tooltip("Optional. When assigned, this asset supplies the " +
+             "card's rank and suit and the integers below are " +
+             "ignored.")]
+    private CardDefinition definition;
 
     [SerializeField] private int value;
-    [SerializeField] private int rank;
-    [SerializeField] private int suit;
+
+    // rank/suit are enums, but Unity serialises an enum as its
+    // underlying int - so these still read the SAME "rank: 1"
+    // and "suit: 3" already authored in the 53 card prefabs.
+    // Retyping them needed no migration and rewrote no YAML.
+    [SerializeField] private CardRank rank;
+    [SerializeField] private CardSuit suit;
 
 
     // =========================================================
@@ -20,6 +38,12 @@ public class Card : MonoBehaviour,
     // =========================================================
 
     [SerializeField] private Button button;
+
+    [SerializeField]
+    [Tooltip("The card's face. Left empty, the Image on this " +
+             "object is used - which is where the prefab " +
+             "variants put it.")]
+    private Image faceImage;
 
 
     // =========================================================
@@ -58,8 +82,11 @@ public class Card : MonoBehaviour,
     // =========================================================
     // REFERENCES
     // =========================================================
+    //
+    // Pushed in by the manager via Bind(). The card no longer
+    // goes looking for it - see ICardClickHandler.
 
-    private CrybtManager manager;
+    private ICardClickHandler handler;
 
 
     // =========================================================
@@ -68,10 +95,6 @@ public class Card : MonoBehaviour,
 
     private void Awake()
     {
-        manager =
-            FindObjectOfType<CrybtManager>();
-
-
         basePosition =
             transform.position;
 
@@ -90,10 +113,99 @@ public class Card : MonoBehaviour,
         }
         else
         {
-            Debug.LogWarning(
+            GameLog.Warning(
                 gameObject.name +
                 " does not have a Button assigned."
             );
+        }
+    }
+
+
+    private void OnDestroy()
+    {
+        if (button != null)
+        {
+            button.onClick.RemoveListener(
+                CardClicked
+            );
+        }
+    }
+
+
+    // =========================================================
+    // BIND
+    // =========================================================
+    //
+    // Called once by whatever is running the table.
+
+    public void Bind(ICardClickHandler clickHandler)
+    {
+        handler = clickHandler;
+    }
+
+
+    // =========================================================
+    // BIND DEFINITION
+    // =========================================================
+    //
+    // Used when the deck is built at runtime from
+    // CardDefinition assets rather than from prefab variants.
+
+    public void Bind(CardDefinition cardDefinition)
+    {
+        definition = cardDefinition;
+
+        if (cardDefinition != null)
+        {
+            ApplyFace(cardDefinition.Face);
+        }
+    }
+
+
+    // =========================================================
+    // BIND DECK ROW
+    // =========================================================
+    //
+    // Used when the deck is built at runtime from a
+    // DeckDefinition, so a card needs no asset of its own.
+    //
+    // Writes the serialized fields directly rather than going
+    // through a definition, which is what lets one prefab
+    // become any card.
+
+    public void Bind(
+        CardRank cardRank,
+        CardSuit cardSuit,
+        Sprite face)
+    {
+        definition = null;
+
+        rank = cardRank;
+        suit = cardSuit;
+
+        // GetValue() reads this, so it has to be kept in step
+        // with the rank or every face card scores as 0.
+        value = CardConstants.PipValueFor(cardRank);
+
+        ApplyFace(face);
+    }
+
+
+    private void ApplyFace(Sprite face)
+    {
+        if (face == null)
+        {
+            return;
+        }
+
+        if (faceImage == null)
+        {
+            faceImage = GetComponent<Image>();
+        }
+
+        if (faceImage != null)
+        {
+            faceImage.sprite = face;
         }
     }
 
@@ -122,36 +234,11 @@ public class Card : MonoBehaviour,
         t = Mathf.Clamp01(t);
 
 
-        // =====================================================
-        // QUADRATIC EASE IN / OUT
-        // =====================================================
-        //
-        // First half:
-        // Accelerates toward the destination.
-        //
-        // Second half:
-        // Decelerates into the destination.
-        //
-        // This creates the parabolic-style acceleration
-        // instead of moving at a constant speed.
-
-        float easedT;
-
-
-        if (t < 0.5f)
-        {
-            easedT =
-                2f * t * t;
-        }
-        else
-        {
-            easedT =
-                1f -
-                Mathf.Pow(
-                    -2f * t + 2f,
-                    2f
-                ) / 2f;
-        }
+        // Quadratic ease in / out.
+        // Shared with the card rotation animation so the two
+        // always feel like the same movement.
+        float easedT =
+            Easing.QuadInOut(t);
 
 
         transform.position =
@@ -224,17 +311,20 @@ public class Card : MonoBehaviour,
         }
 
 
-        if (manager == null)
+        if (handler == null)
         {
-            Debug.LogWarning(
-                "Card could not find CrybtManager."
+            GameLog.Warning(
+                gameObject.name
+                + " was clicked but nothing has called Bind() "
+                + "on it. Is this card in one of CrybtManager's "
+                + "card lists?"
             );
 
             return;
         }
 
 
-        manager.CardClicked(
+        handler.CardClicked(
             this
         );
     }
@@ -463,13 +553,22 @@ public class Card : MonoBehaviour,
 
     public int GetValue()
     {
+        if (definition != null)
+        {
+            return definition.PipValue;
+        }
+
+
         // Jack, Queen, and King count as 10
         // when calculating numerical card values.
-
-        if (value >= 11 &&
-            value <= 13)
+        //
+        // Defensive only: the prefabs already author face cards
+        // with value 10, so this clamp has never fired. It is
+        // kept because nothing enforces that.
+        if (value >= (int)CardConstants.LowestFaceRank &&
+            value <= CardConstants.RanksPerSuit)
         {
-            return 10;
+            return CardConstants.FaceCardValue;
         }
 
 
@@ -477,22 +576,52 @@ public class Card : MonoBehaviour,
     }
 
 
-    public int GetRank()
+    public CardRank GetRank()
     {
-        // Actual card rank:
-        //
-        // Ace   = 1
-        // 2-10  = 2-10
-        // Jack  = 11
-        // Queen = 12
-        // King  = 13
-
-        return rank;
+        return definition != null
+            ? definition.Rank
+            : rank;
     }
 
 
-    public int GetSuit()
+    public CardSuit GetSuit()
     {
-        return suit;
+        return definition != null
+            ? definition.Suit
+            : suit;
     }
+
+
+    // =========================================================
+    // AS CARD VALUE
+    // =========================================================
+    //
+    // The plain data form the scoring rules operate on.
+
+    public CardValue ToCardValue()
+    {
+        return new CardValue(
+            GetValue(),
+            GetRank(),
+            GetSuit()
+        );
+    }
+
+
+#if UNITY_EDITOR
+
+    // =========================================================
+    // EDITOR ACCESS
+    // =========================================================
+    //
+    // Used by the CardDefinition generator so it can read the
+    // values baked into each prefab variant. Editor-only.
+
+    public int EditorRawValue => value;
+
+    public CardRank EditorRawRank => rank;
+
+    public CardSuit EditorRawSuit => suit;
+
+#endif
 }

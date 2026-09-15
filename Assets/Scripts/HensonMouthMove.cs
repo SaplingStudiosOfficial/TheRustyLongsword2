@@ -8,7 +8,6 @@ using System;
 public class HensonMouthMove : MonoBehaviour
 {
     private Animator animator;
-    private int counter = 0;
     [SerializeField] TextMeshProUGUI textObject;
     [SerializeField] TextMeshProUGUI dialogText;
     [SerializeField] TextMeshProUGUI dialogTextT1;

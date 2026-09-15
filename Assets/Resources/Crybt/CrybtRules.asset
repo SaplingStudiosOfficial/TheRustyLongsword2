@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2b9665c6b2cae24b8950fe0f53eb95f, type: 3}
+  m_Name: CrybtRules
+  m_EditorClassIdentifier: 
+  encountersPerCrawl: 4
+  handSize: 5
+  fifteenTarget: 15
+  fifteenPoints: 2
+  pointsPerPair: 2
+  minimumRunLength: 3
+  minimumFlushSize: 4
+  maximumFlushSize: 5
+  offeringFifteenPoints: 2
+  offeringPairPoints: 2
+  graveyardBonusPerCard: 1
+  unspentPointsCarryOver: 0
