@@ -333,6 +333,10 @@ public class EncounterHud : MonoBehaviour
             return;
         }
 
+        // Purely informational - it must never eat a click meant
+        // for the card sitting behind or beside it.
+        target.raycastTarget = false;
+
         bool show =
             view.CombinationPreview.HasValue
             && !string.IsNullOrEmpty(
