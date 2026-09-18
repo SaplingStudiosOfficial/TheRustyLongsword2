@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2701dfea29946e439885d78119ae312, type: 3}
+  m_Name: Sound_ScoreTick
+  m_EditorClassIdentifier: 
+  description: The tally. Climbs a major pentatonic scale across successive scoring
+    combinations and resets at the start of each encounter.
+  settings:
+    clips:
+    - {fileID: 8300000, guid: d46dda3e58d9b5544a391db295485903, type: 3}
+    pickMode: 2
+    playback: 0
+    ignoreListenerPause: 1
+    volume: 0.7
+    volumeShaper:
+      mode: 0
+      low: 1
+      high: 1
+      step: 1
+      wrap: 0
+    pitch: 1
+    pitchUnit: 1
+    scale: 3
+    pitchShaper:
+      mode: 2
+      low: 0
+      high: 11
+      step: 1
+      wrap: 0
+    progressionResetSeconds: 4
+    routing: 1
+    outputGroup: {fileID: 2546010715904458052, guid: 845cde8cb90be474a9a061542ff6827f, type: 2}
+    fadeInSeconds: 0
+    fadeOutSeconds: 0

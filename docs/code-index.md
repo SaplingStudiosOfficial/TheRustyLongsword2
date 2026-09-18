@@ -720,6 +720,11 @@ Added on top of `Core/Audio`, under `Assets/Scripts/CrybtManager/Audio/`.
 | `CrybtSoundTable.cs` | ScriptableObject mapping `CrybtSound` to `SoundDefinition`. Shipped copy at `Assets/Resources/Crybt/CrybtSounds.asset`. |
 | `CrybtAudio.cs` | The Crybt's one audio entry point. Builds a `SoundPlayer` per sound at runtime, all sharing one `PoolHost`. |
 | `Editor/CrybtAudioGenerator.cs` | `Tools > Crybt > Generate Crybt Sound Assets`. Builds the definitions and the table. Safe to re-run; existing assets kept. |
+| `Editor/CrybtSoundEntryDrawer.cs` | Draws a table row as "Card Hover" with its asset on the same line, instead of "Element 0". **Permanent** — unlike the rest of that folder, it is not a one-shot migration to be deleted. |
+
+Unity's built-in "use a field for the array element label" feature only reads a serialized
+**string** field, so it does not apply to an enum-keyed row — hence the drawer rather than a
+field rename, which would also have orphaned the enum value in every authored row.
 
 `CrybtManager` gained one serialized `CrybtAudio` field and ~30 one-line `PlaySound(...)`
 calls. Every one goes through a private null-checked helper, so removing `CrybtAudio`
