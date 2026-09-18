@@ -480,58 +480,65 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
     private void EnsureHud()
     {
-        if (hud != null)
-        {
-            return;
-        }
-
-        // The migration tool adds the component to this same
-        // GameObject, so pick it up even if the inspector
-        // reference was not saved with the scene.
-        hud = GetComponent<EncounterHud>();
-
+        // Widget adoption only needs to happen once, whether hud
+        // arrived pre-wired from the scene (a migrated HUD) or
+        // gets built here. SetHandAnchor() below does NOT belong
+        // inside this guard: it used to, and that meant a
+        // migrated HUD (hud already non-null from the scene)
+        // returned before ever reaching it, leaving the score
+        // breakdown label with no hand anchor for the whole
+        // session no matter what HandSlot was set to.
         if (hud == null)
         {
-            // No migrated HUD. Build one at runtime rather
-            // than shipping a dead UI: the widget references
-            // are still sitting in the legacy block below,
-            // because the scene YAML still carries them under
-            // their original field names.
-            hud = gameObject.AddComponent<EncounterHud>();
+            // The migration tool adds the component to this same
+            // GameObject, so pick it up even if the inspector
+            // reference was not saved with the scene.
+            hud = GetComponent<EncounterHud>();
 
-            GameLog.Info(
-                "No EncounterHud found - built one at runtime "
-                + "from the legacy widget references. The game "
-                + "is playable as-is. To make this permanent "
-                + "(and let the legacy block be deleted), run "
-                + "Tools > Crybt > Migrate HUD References and "
-                + "save the Crybt scene."
+            if (hud == null)
+            {
+                // No migrated HUD. Build one at runtime rather
+                // than shipping a dead UI: the widget references
+                // are still sitting in the legacy block below,
+                // because the scene YAML still carries them under
+                // their original field names.
+                hud = gameObject.AddComponent<EncounterHud>();
+
+                GameLog.Info(
+                    "No EncounterHud found - built one at runtime "
+                    + "from the legacy widget references. The game "
+                    + "is playable as-is. To make this permanent "
+                    + "(and let the legacy block be deleted), run "
+                    + "Tools > Crybt > Migrate HUD References and "
+                    + "save the Crybt scene."
+                );
+            }
+
+            // Fill in anything the Inspector left empty. Widgets
+            // already assigned on a migrated HUD are kept.
+            hud.AdoptWidgets(
+                KeepHeroButton,
+                SwitchHeroButton,
+                PeekCardButton,
+                ConfirmComboButton,
+                EndEncounterButton,
+                TrashDisplay,
+                AttackScore,
+                Boons,
+                HealthDisplay,
+                ModifierDisplay,
+                ScoreDisplay,
+                MonsterAPDisplay,
+                EncounterDisplay,
+                CrawlDisplay,
+                OfferingPointsDisplay
             );
         }
 
-        // Fill in anything the Inspector left empty. Widgets
-        // already assigned on a migrated HUD are kept.
-        hud.AdoptWidgets(
-            KeepHeroButton,
-            SwitchHeroButton,
-            PeekCardButton,
-            ConfirmComboButton,
-            EndEncounterButton,
-            TrashDisplay,
-            AttackScore,
-            Boons,
-            HealthDisplay,
-            ModifierDisplay,
-            ScoreDisplay,
-            MonsterAPDisplay,
-            EncounterDisplay,
-            CrawlDisplay,
-            OfferingPointsDisplay
-        );
-
         // Lets the HUD place the score breakdown under the
         // player's hand without having to know the board
-        // layout itself.
+        // layout itself. Runs every call (not just when hud was
+        // just built) so a migrated HUD gets it too.
         if (HandSlot != null)
         {
             hud.SetHandAnchor(

@@ -98,15 +98,23 @@ public class EncounterHud : MonoBehaviour
 
     [SerializeField]
     [Tooltip("Distance below the hand slot's centre. Needs to " +
-             "clear half a card plus a margin.")]
-    private float autoBreakdownGapBelowHand = 110f;
+             "clear the whole card, not just half of it, since " +
+             "the label sits under the row rather than " +
+             "alongside it.")]
+    private float autoBreakdownGapBelowHand = 118.0001f;
+
+    [SerializeField]
+    [Tooltip("Horizontal offset from the hand slot's centre. " +
+             "Centres the label under the row (the label's " +
+             "pivot is on its left edge, so this is roughly " +
+             "-width / 2).")]
+    private float autoBreakdownHorizontalOffset = -277.6294f;
 
     [SerializeField]
     [Tooltip("Width and height of the label, in the same " +
-             "units the card slots use. Wide and short: the " +
-             "breakdown is one line across the player's side.")]
+             "units the card slots use.")]
     private Vector2 autoBreakdownSize =
-        new Vector2(900f, 120f);
+        new Vector2(559.382f, 41.717f);
 
     [SerializeField]
     [Tooltip("Font size relative to the score display. The " +
@@ -117,6 +125,8 @@ public class EncounterHud : MonoBehaviour
     private RectTransform handAnchor;
 
     private bool breakdownResolved;
+
+    private bool warnedMissingHandAnchor;
 
 
     // =========================================================
@@ -337,6 +347,13 @@ public class EncounterHud : MonoBehaviour
         // for the card sitting behind or beside it.
         target.raycastTarget = false;
 
+        // Re-laid out every render, not just the frame the label
+        // was created on: the clone can be created before
+        // CrybtManager has called SetHandAnchor(), and locking in
+        // that first (handAnchor-less) position left the label
+        // stuck next to the score readout instead of the hand.
+        LayOutBreakdown(target.rectTransform);
+
         bool show =
             view.CombinationPreview.HasValue
             && !string.IsNullOrEmpty(
@@ -442,6 +459,11 @@ public class EncounterHud : MonoBehaviour
             return;
         }
 
+        if (handAnchor == null)
+        {
+            WarnMissingHandAnchorOnce();
+        }
+
         RectTransform reference =
             handAnchor != null
                 ? handAnchor
@@ -467,7 +489,8 @@ public class EncounterHud : MonoBehaviour
 
         placed.anchoredPosition =
             new Vector2(
-                reference.anchoredPosition.x,
+                reference.anchoredPosition.x
+                + autoBreakdownHorizontalOffset,
                 reference.anchoredPosition.y
                 - autoBreakdownGapBelowHand
             );
@@ -475,6 +498,36 @@ public class EncounterHud : MonoBehaviour
         placed.localScale = Vector3.one;
 
         placed.localRotation = Quaternion.identity;
+    }
+
+
+    // =========================================================
+    // WARN MISSING HAND ANCHOR
+    // =========================================================
+    //
+    // The fallback (sitting under the score display) is meant
+    // for a scene that never calls SetHandAnchor() at all. If
+    // CrybtManager's HandSlot IS wired up and this still fires,
+    // that silently mislabels a wiring bug as a layout bug - so
+    // say so, once, instead of leaving it to be diagnosed from
+    // a screenshot.
+
+    private void WarnMissingHandAnchorOnce()
+    {
+        if (warnedMissingHandAnchor)
+        {
+            return;
+        }
+
+        warnedMissingHandAnchor = true;
+
+        GameLog.Warning(
+            "EncounterHud: no hand anchor set - the combination "
+            + "breakdown label is falling back to the score "
+            + "display's position instead of sitting under the "
+            + "hand. If CrybtManager.HandSlot is assigned, check "
+            + "that SetHandAnchor() is actually being called."
+        );
     }
 
 
@@ -507,7 +560,7 @@ public class EncounterHud : MonoBehaviour
                 )
             );
 
-        target.alignment = TextAnchor.UpperLeft;
+        target.alignment = TextAnchor.MiddleCenter;
 
         target.horizontalOverflow = HorizontalWrapMode.Wrap;
 

@@ -3055,8 +3055,9 @@ MonoBehaviour:
   crawlDisplay: {fileID: 357323486}
   offeringPointsDisplay: {fileID: 2050487127}
   scoreBreakdownDisplay: {fileID: 0}
-  autoBreakdownGapBelowHand: 110
-  autoBreakdownSize: {x: 900, y: 120}
+  autoBreakdownGapBelowHand: 118.0001
+  autoBreakdownHorizontalOffset: -277.6294
+  autoBreakdownSize: {x: 559.382, y: 41.717}
   autoBreakdownFontScale: 0.25
   unknownAttackPowerText: '?'
 --- !u!1 &1606532831
