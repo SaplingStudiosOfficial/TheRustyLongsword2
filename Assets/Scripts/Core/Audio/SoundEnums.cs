@@ -43,7 +43,13 @@ public enum SoundStepWrap
     Loop = 0,
 
     // Turn around and walk back.
-    PingPong = 1
+    PingPong = 1,
+
+    // Stop at the end and stay there. A progression that is
+    // meant to build - a combo, a score tally - wants this:
+    // running out of range should sound like the top of the
+    // run, not like starting over.
+    Clamp = 2
 }
 
 

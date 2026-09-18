@@ -304,6 +304,7 @@ public class SoundSettings
         float low,
         float high,
         float step,
+        SoundStepWrap wrap,
         float resetSeconds)
     {
         pitchUnit = SoundPitchUnit.MusicalSteps;
@@ -314,8 +315,36 @@ public class SoundSettings
             low,
             high,
             step,
-            SoundStepWrap.Loop
+            wrap
         );
+    }
+
+
+    // The note a musical progression climbs FROM. Below 1 the
+    // clip starts lower than recorded, which is what leaves
+    // room above it for the run to rise into.
+    public void EditorSetBasePitch(float value)
+    {
+        pitch = ClampPitch(value);
+    }
+
+
+    // Back to a plain, unvaried sound. A tool that rewrites an
+    // existing asset has to start from here, or settings the
+    // new spec does not mention survive from the old one.
+    public void EditorResetVariation()
+    {
+        pitch = 1f;
+        pitchUnit = SoundPitchUnit.Multiplier;
+        scale = MusicalScale.Chromatic;
+        progressionResetSeconds = 0f;
+
+        pitchShaper.EditorSetNone();
+        volumeShaper.EditorSetNone();
+
+        fadeInSeconds = 0f;
+        fadeOutSeconds = 0f;
+        ignoreListenerPause = false;
     }
 
 

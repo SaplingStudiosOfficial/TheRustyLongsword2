@@ -12,8 +12,8 @@ using UnityEngine;
 // None .... the sound plays exactly as authored.
 // Random .. anywhere between low and high, fresh every time.
 // Step .... starts at low and moves by a fixed step per play,
-//           wrapping round the range or turning around at the
-//           ends.
+//           then either wraps round the range, turns around at
+//           the ends, or stops at the top and stays there.
 //
 // WHY THIS HOLDS NO STATE:
 //
@@ -54,8 +54,8 @@ public class SoundShaper
     [Tooltip("Loop jumps back to the far end and keeps going " +
              "the same way, and never lands ON High - set High " +
              "one step past the last value you want. PingPong " +
-             "turns around at High and does land on it. Step " +
-             "mode only.")]
+             "turns around at High. Clamp stops at High and " +
+             "stays there. Step mode only.")]
     private SoundStepWrap wrap = SoundStepWrap.Loop;
 
 
@@ -115,16 +115,29 @@ public class SoundShaper
         // input, so a negative step needs no special case - it
         // simply walks the other way round the same range.
         //
-        // Note the two wraps differ at the top of the range.
-        // Repeat is exclusive there - a range of 0 to 12 in
+        // The three wraps differ at the top of the range.
+        // Repeat is EXCLUSIVE there - a range of 0 to 12 in
         // semitones with a step of 1 gives the twelve notes 0
         // to 11 and then starts again, so the octave itself is
-        // reached by setting High to 13. PingPong IS inclusive,
-        // because the turn happens ON the endpoint.
-        float offset =
-            wrap == SoundStepWrap.PingPong
-                ? Mathf.PingPong(travel, span)
-                : Mathf.Repeat(travel, span);
+        // only reached by setting High to 13. PingPong and
+        // Clamp are both INCLUSIVE, because the turn, or the
+        // stop, happens ON the endpoint.
+        float offset;
+
+        switch (wrap)
+        {
+            case SoundStepWrap.PingPong:
+                offset = Mathf.PingPong(travel, span);
+                break;
+
+            case SoundStepWrap.Clamp:
+                offset = Mathf.Clamp(travel, 0f, span);
+                break;
+
+            default:
+                offset = Mathf.Repeat(travel, span);
+                break;
+        }
 
         return low + offset;
     }
@@ -151,13 +164,29 @@ public class SoundShaper
 
         float moved = travel + step;
 
-        // A run long enough to lose float precision is not a
-        // real case, but a cheap fold keeps it honest.
         float span = high - low;
 
+        if (span <= 0f)
+        {
+            return moved;
+        }
+
+        // Clamp has nowhere further to go, so travel stops
+        // accumulating at the end of the range. Without this a
+        // long session keeps adding to a number nothing reads,
+        // and a single step backwards would then do nothing
+        // visible for a very long time.
+        if (wrap == SoundStepWrap.Clamp)
+        {
+            return Mathf.Clamp(moved, 0f, span);
+        }
+
+        // A run long enough to lose float precision is not a
+        // real case, but a cheap fold keeps it honest.
+        //
         // PingPong repeats every TWO spans - out and back - so
         // that is the period the fold has to preserve.
-        if (span > 0f && Mathf.Abs(moved) > span * 1024f)
+        if (Mathf.Abs(moved) > span * 1024f)
         {
             moved =
                 wrap == SoundStepWrap.PingPong

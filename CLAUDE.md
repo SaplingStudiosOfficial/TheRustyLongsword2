@@ -76,6 +76,9 @@ Editor menu tools (Editor-only, deleted once their migration has been run — se
 - `Tools > Crybt > Generate Card Definitions From Prefabs`
 - `Tools > Crybt > Generate Crybt Sound Assets` — builds one `SoundDefinition` per
   `CrybtSound` plus the table `CrybtAudio` loads; safe to re-run, existing assets kept
+- `Tools > Crybt > Rebuild Crybt Sound Assets (Overwrite)` — the same, but re-applies the
+  generator's settings to assets that already exist, discarding hand edits; asks first.
+  This is the one to run after changing a sound's tuning in the generator table
 
 ## Runtime shape — what can actually be reached
 

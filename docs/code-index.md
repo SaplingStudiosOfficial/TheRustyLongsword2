@@ -719,7 +719,7 @@ Added on top of `Core/Audio`, under `Assets/Scripts/CrybtManager/Audio/`.
 | `CrybtSound.cs` | 23 named moments — card deal, monster reveal, score tick, action refused. Serialized as ints inside the table; **do not reorder**. |
 | `CrybtSoundTable.cs` | ScriptableObject mapping `CrybtSound` to `SoundDefinition`. Shipped copy at `Assets/Resources/Crybt/CrybtSounds.asset`. |
 | `CrybtAudio.cs` | The Crybt's one audio entry point. Builds a `SoundPlayer` per sound at runtime, all sharing one `PoolHost`. |
-| `Editor/CrybtAudioGenerator.cs` | `Tools > Crybt > Generate Crybt Sound Assets`. Builds the definitions and the table. Safe to re-run; existing assets kept. |
+| `Editor/CrybtAudioGenerator.cs` | `Tools > Crybt > Generate Crybt Sound Assets` builds the definitions and the table, leaving existing assets alone. `… > Rebuild Crybt Sound Assets (Overwrite)` re-applies the tuning to existing assets, discarding hand edits. |
 | `Editor/CrybtSoundEntryDrawer.cs` | Draws a table row as "Card Hover" with its asset on the same line, instead of "Element 0". **Permanent** — unlike the rest of that folder, it is not a one-shot migration to be deleted. |
 
 Unity's built-in "use a field for the array element label" feature only reads a serialized
@@ -732,9 +732,21 @@ from the scene silences the game without touching the state machine. `Card` gain
 `BindAudio(CrybtAudio)` and plays a hover tick — pushed by the manager, so none of the
 53 card prefabs changed.
 
-The score tick is the one sound that climbs: major pentatonic, eleven steps, reset at the
-start of every encounter, so a scoring streak reads as a run rather than the same blip
-five times.
+The score tick is the one sound that climbs. It starts at pitch 0.75 — a fourth below the
+recorded tick — and walks one note of the **major scale** per scoring combination, over
+fifteen notes and exactly two octaves, then **holds** on the top note rather than looping.
+Two octaves above 0.75 is exactly 3.0, Unity's pitch ceiling, so raising that base pitch
+would squash the top of the run.
+
+It resets only when a new hand is dealt (`CrybtManager.StartEncounter`). There is
+deliberately no idle timeout — a player who stops to think mid-hand should not lose their
+place in the run.
+
+Note this is the major *scale*, not the key of C: pitching a recorded sample puts the root
+wherever the clip itself sits, so only a tick recorded at C would make it literally C major.
+
+`SoundStepWrap.Clamp` was added for this. Unlike `Loop`, it includes its top endpoint —
+which is why the range is 0 to 14 rather than 0 to 15.
 
 ### Still outstanding
 

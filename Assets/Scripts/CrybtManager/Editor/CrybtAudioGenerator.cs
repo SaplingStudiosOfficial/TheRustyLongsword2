@@ -28,6 +28,14 @@ using UnityEngine.Audio;
 // as it is - so a level tweaked by hand survives. Only the
 // table is rewritten, and only to add rows it was missing.
 //
+// That is also what makes it useless for tuning, so there is a
+// second menu item:
+//
+//   Tools > Crybt > Rebuild Crybt Sound Assets (Overwrite)
+//
+// which re-applies the table below to assets that already
+// exist, discarding hand edits. It asks before it does.
+//
 // SCOPE:
 //
 // Crybt only. Nothing here touches the overworld, and the
@@ -49,6 +57,32 @@ public static class CrybtAudioGenerator
 
     private const string UiFolder =
         "Assets/AudioLines/CryptAudio/UIEffectsAudio/";
+
+
+    // =========================================================
+    // THE SCORE TALLY
+    // =========================================================
+    //
+    // The one sound that climbs rather than jitters.
+    //
+    // It starts a fourth BELOW the recorded tick so the run has
+    // somewhere to go. Two octaves above 0.75 is exactly 3.0,
+    // which is Unity's pitch ceiling - raise this base and the
+    // top of the run gets quietly squashed against it.
+    //
+    // NOTE ON THE KEY:
+    //
+    // This is the major SCALE, not the key of C. Pitching a
+    // recorded sample puts the root wherever the clip itself
+    // sits; only a tick recorded at C would make this literally
+    // C major.
+
+    private const float ScoreTickBasePitch = 0.75f;
+
+    // Seven notes to the octave in a major scale, so fourteen
+    // steps is two octaves - and step fourteen is reached,
+    // because Clamp includes its endpoint where Loop does not.
+    private const float ScoreTickTopStep = 14f;
 
 
     // =========================================================
@@ -127,8 +161,9 @@ public static class CrybtAudioGenerator
         // Pitch is set separately below - this is the one that
         // climbs rather than jitters.
         Spec(CrybtSound.ScoreTick, UiFolder + "ScoreCounterTick.wav", true, 0.70f, 1f, 1f,
-            "The tally. Climbs a major pentatonic scale across successive scoring "
-            + "combinations and resets at the start of each encounter."),
+            "The tally. Starts a fourth below the recorded tick and climbs one note of "
+            + "the major scale per scoring combination, holding on the note two octaves "
+            + "up rather than looping. Resets to the bottom on each new hand."),
 
         Spec(CrybtSound.CrawlComplete, EffectsFolder + "VictoryRunComplete.wav", false, 1.00f, 1f, 1f,
             "The crawl is survived."),
@@ -184,6 +219,48 @@ public static class CrybtAudioGenerator
     [MenuItem("Tools/Crybt/Generate Crybt Sound Assets")]
     private static void Generate()
     {
+        Run(false);
+    }
+
+
+    // =========================================================
+    // REBUILD
+    // =========================================================
+    //
+    // The same tool, but it re-applies the table above to assets
+    // that already exist.
+    //
+    // WHY THIS IS SEPARATE:
+    //
+    // Generate is safe precisely because it never touches an
+    // existing asset - a level nudged by hand survives it. That
+    // safety is also what makes it useless for tuning: change a
+    // number in the table above and nothing happens.
+    //
+    // This one discards hand edits, so it asks first.
+
+    [MenuItem("Tools/Crybt/Rebuild Crybt Sound Assets (Overwrite)")]
+    private static void Rebuild()
+    {
+        bool confirmed =
+            EditorUtility.DisplayDialog(
+                "Rebuild Crybt Sound Assets",
+                "This re-applies the generator's settings to every "
+                + "sound asset that already exists, discarding any "
+                + "levels, ranges or clips changed by hand.",
+                "Overwrite",
+                "Cancel"
+            );
+
+        if (confirmed)
+        {
+            Run(true);
+        }
+    }
+
+
+    private static void Run(bool overwrite)
+    {
         EnsureFolder("Assets/Resources");
         EnsureFolder("Assets/Resources/Crybt");
         EnsureFolder(SoundFolder);
@@ -193,6 +270,7 @@ public static class CrybtAudioGenerator
         AudioMixerGroup musicGroup = FindGroup("Music");
 
         int created = 0;
+        int rebuilt = 0;
         int missingClips = 0;
 
         List<CrybtSoundTable.Entry> rows =
@@ -208,7 +286,9 @@ public static class CrybtAudioGenerator
             SoundDefinition sound =
                 AssetDatabase.LoadAssetAtPath<SoundDefinition>(path);
 
-            if (sound == null)
+            bool isNew = sound == null;
+
+            if (isNew || overwrite)
             {
                 AudioClip clip =
                     AssetDatabase.LoadAssetAtPath<AudioClip>(spec.Clip);
@@ -220,22 +300,38 @@ public static class CrybtAudioGenerator
                         + spec.Clip
                         + " for "
                         + spec.Id
-                        + ". The asset is still created, with no clip."
+                        + ". The asset is still written, with no clip."
                     );
 
                     missingClips++;
                 }
 
-                sound = Build(
+                if (isNew)
+                {
+                    sound =
+                        ScriptableObject.CreateInstance<SoundDefinition>();
+                }
+
+                Configure(
+                    sound,
                     spec,
                     clip,
                     spec.Ui ? uiGroup : sfxGroup,
                     musicGroup
                 );
 
-                AssetDatabase.CreateAsset(sound, path);
+                if (isNew)
+                {
+                    AssetDatabase.CreateAsset(sound, path);
 
-                created++;
+                    created++;
+                }
+                else
+                {
+                    EditorUtility.SetDirty(sound);
+
+                    rebuilt++;
+                }
             }
 
             CrybtSoundTable.Entry row =
@@ -254,17 +350,23 @@ public static class CrybtAudioGenerator
         Debug.Log(
             "[Crybt Audio] "
             + created
-            + " new sound asset(s) under "
+            + " new and "
+            + rebuilt
+            + " rebuilt sound asset(s) under "
             + SoundFolder
             + ", table written to "
             + TablePath
-            + ". Existing assets were left alone."
+            + (overwrite
+                ? "."
+                : ". Existing assets were left alone.")
         );
 
         EditorUtility.DisplayDialog(
             "Crybt Sound Assets",
             created
-            + " new sound asset(s) created.\n"
+            + " created, "
+            + rebuilt
+            + " rebuilt.\n"
             + (missingClips > 0
                 ? missingClips + " clip(s) could not be found - see the Console.\n\n"
                 : "\n")
@@ -280,14 +382,17 @@ public static class CrybtAudioGenerator
     // BUILD ONE SOUND
     // =========================================================
 
-    private static SoundDefinition Build(
+    private static void Configure(
+        SoundDefinition sound,
         SoundSpec spec,
         AudioClip clip,
         AudioMixerGroup group,
         AudioMixerGroup musicGroup)
     {
-        SoundDefinition sound =
-            ScriptableObject.CreateInstance<SoundDefinition>();
+        // Rebuilding an existing asset has to start from a known
+        // state, or a pitch range the spec no longer asks for
+        // survives from the previous run.
+        sound.Settings.EditorResetVariation();
 
         sound.EditorSetDescription(spec.Description);
 
@@ -309,7 +414,7 @@ public static class CrybtAudioGenerator
             // half out.
             sound.Settings.EditorSetFades(2f, 1.5f);
 
-            return sound;
+            return;
         }
 
         // UI sounds keep playing while the game is paused,
@@ -318,20 +423,28 @@ public static class CrybtAudioGenerator
 
         if (spec.Id == CrybtSound.ScoreTick)
         {
-            // Eleven steps of a major pentatonic is a little
-            // over two octaves - enough headroom that a long
-            // scoring streak keeps climbing instead of wrapping
-            // after four cards. Four seconds of quiet puts it
-            // back at the bottom.
+            sound.Settings.EditorSetBasePitch(ScoreTickBasePitch);
+
             sound.Settings.EditorSetMusicalStep(
-                MusicalScale.PentatonicMajor,
+                MusicalScale.Major,
                 0f,
-                11f,
+                ScoreTickTopStep,
                 1f,
-                4f
+
+                // Clamp, not Loop. Running out of range should
+                // sound like the top of the run, not like
+                // starting the run again.
+                SoundStepWrap.Clamp,
+
+                // No idle reset. The only thing that puts the
+                // tally back to the bottom is a new hand, which
+                // CrybtManager does at StartEncounter. A player
+                // who stops to think mid-hand should not lose
+                // their place.
+                0f
             );
 
-            return sound;
+            return;
         }
 
         if (spec.PitchLow < spec.PitchHigh)
@@ -341,8 +454,6 @@ public static class CrybtAudioGenerator
                 spec.PitchHigh
             );
         }
-
-        return sound;
     }
 
 
