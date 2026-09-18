@@ -710,9 +710,32 @@ and nothing here is wired into a scene yet.
 `SoundPlaybackMode` and `SoundMixerRouting` are serialized as integers, exactly like
 `EncounterStage`. **Do not reorder them.** Add new members at the end.
 
+### The Crybt audio layer
+
+Added on top of `Core/Audio`, under `Assets/Scripts/CrybtManager/Audio/`.
+
+| File | What |
+|---|---|
+| `CrybtSound.cs` | 23 named moments — card deal, monster reveal, score tick, action refused. Serialized as ints inside the table; **do not reorder**. |
+| `CrybtSoundTable.cs` | ScriptableObject mapping `CrybtSound` to `SoundDefinition`. Shipped copy at `Assets/Resources/Crybt/CrybtSounds.asset`. |
+| `CrybtAudio.cs` | The Crybt's one audio entry point. Builds a `SoundPlayer` per sound at runtime, all sharing one `PoolHost`. |
+| `Editor/CrybtAudioGenerator.cs` | `Tools > Crybt > Generate Crybt Sound Assets`. Builds the definitions and the table. Safe to re-run; existing assets kept. |
+
+`CrybtManager` gained one serialized `CrybtAudio` field and ~30 one-line `PlaySound(...)`
+calls. Every one goes through a private null-checked helper, so removing `CrybtAudio`
+from the scene silences the game without touching the state machine. `Card` gained
+`BindAudio(CrybtAudio)` and plays a hover tick — pushed by the manager, so none of the
+53 card prefabs changed.
+
+The score tick is the one sound that climbs: major pentatonic, eleven steps, reset at the
+start of every encounter, so a scoring streak reads as a run rather than the same blip
+five times.
+
 ### Still outstanding
 
-- The three mixer groups (`Music`, `SFX`, `UI`) under `WorldSound.mixer`'s `Master` have not
-  been created. That is a manual Editor step, written up in `docs/audio-migration.md`.
-- No scene references any of this yet. `Crybt.unity` still has zero AudioSources.
-- The 31 clips in `Assets/AudioLines/CryptAudio/` are still unreferenced by anything.
+- **Run `Tools > Crybt > Generate Crybt Sound Assets` once.** Until it is run there is no
+  sound table, and `CrybtAudio` warns and stays silent.
+- **Add a `CrybtAudio` component** to the object carrying `CrybtManager` in `Crybt.unity`,
+  then save the scene. That is the only scene edit needed — everything else self-wires.
+- `Crybt.unity` still has zero authored AudioSources; every voice is pooled at runtime.
+- Nothing in the overworld has been re-routed to the new `Music`/`SFX`/`UI` mixer groups.

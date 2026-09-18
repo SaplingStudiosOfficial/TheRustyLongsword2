@@ -74,6 +74,8 @@ Editor menu tools (Editor-only, deleted once their migration has been run — se
 - `Tools > Generate Default Data Assets` — recreates `CrybtRules` + the six boons
 - `Tools > Crybt > Migrate HUD References` — copies legacy `CrybtManager` UI fields onto `EncounterHud`
 - `Tools > Crybt > Generate Card Definitions From Prefabs`
+- `Tools > Crybt > Generate Crybt Sound Assets` — builds one `SoundDefinition` per
+  `CrybtSound` plus the table `CrybtAudio` loads; safe to re-run, existing assets kept
 
 ## Runtime shape — what can actually be reached
 
@@ -93,9 +95,10 @@ Consequences worth keeping in mind:
 - The overworld Button points at `Crybt` instead of `InBar` deliberately, and predates
   this branch. Raise it; do not silently re-point it.
 
-`Resources.Load` is used in exactly one place — `CrybtManager` loading the Crybt tuning
-assets when the Inspector fields are empty. The asset GUID graph is otherwise complete,
-so "is this referenced by a scene or prefab?" is a reliable liveness test.
+`Resources.Load` is used in two places — `CrybtManager` loading the Crybt tuning assets,
+and `CrybtAudio` loading its sound table, both only when the Inspector fields are empty.
+The asset GUID graph is otherwise complete, so "is this referenced by a scene or
+prefab?" is a reliable liveness test.
 
 ## Crybt architecture
 
@@ -108,6 +111,7 @@ else. The split it enforces:
 | Data | `Data/CrybtRules.cs`, `BoonDefinition`, `CardDefinition`, `BoonId` | ScriptableObjects under `Assets/Resources/Crybt/` |
 | Runtime state | `Runtime/BoonShop.cs`, `EncounterStage.cs`, `ICardClickHandler.cs` | |
 | View | `View/EncounterHud.cs`, `View/EncounterView.cs` | Owns every `Button` and `Text` |
+| Audio | `Audio/CrybtAudio.cs`, `CrybtSoundTable`, `CrybtSound` | The manager says *what happened*; the table says what that sounds like |
 | Scene objects | `Card.cs` (53 instances), `CaveIntro`, `ShakeOnEnable`, `SimpleTextShadow` | |
 
 Two invariants this layout exists to protect:
@@ -118,7 +122,9 @@ Two invariants this layout exists to protect:
   `CrybtManager` never touches a widget. Every control gets exactly one assignment in
   `Render`, so "a button lingered into the wrong stage" is not expressible.
 - **Cards are pushed, not pulled.** `Card` never calls `FindObjectOfType`; the manager
-  calls `Card.Bind(ICardClickHandler)` (and `Bind(CardDefinition)` for its face data).
+  calls `Card.Bind(ICardClickHandler)` (and `Bind(CardDefinition)` for its face data,
+  and `BindAudio(CrybtAudio)` so a card can report its own hover). This is what keeps
+  the 53 card prefabs untouched when something new is wired in.
 
 `EncounterStage` values are serialized as integers in the Crybt scene — **do not reorder
 the enum.**

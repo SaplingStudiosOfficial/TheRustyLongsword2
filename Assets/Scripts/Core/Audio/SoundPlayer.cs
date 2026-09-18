@@ -168,6 +168,8 @@ public class SoundPlayer : MonoBehaviour
     private bool warnedNoClips;
     private bool warnedNoVoice;
 
+    private bool didAwake;
+
 
     // =========================================================
     // PUBLIC READ
@@ -205,6 +207,54 @@ public class SoundPlayer : MonoBehaviour
         {
             Pool?.Prewarm(PoolKeys.AudioVoice, prewarmVoices);
         }
+
+        didAwake = true;
+    }
+
+
+    // =========================================================
+    // CONFIGURE
+    // =========================================================
+    //
+    // For players built in code rather than authored in a
+    // scene - see CrybtAudio, which makes one per sound.
+    //
+    // HOW TO CALL IT SAFELY:
+    //
+    // Create the carrier GameObject INACTIVE, AddComponent,
+    // Configure, then activate. Unity does not run Awake on an
+    // inactive object, so the player wakes up already knowing
+    // which pool it belongs to and never builds a private one
+    // it is about to throw away.
+    //
+    // Calling it later still works - the pool is re-resolved
+    // below - but any voices already borrowed stay with the
+    // old pool until they are returned.
+    //
+    // prewarm defaults to zero here on purpose: twenty players
+    // sharing one host should prewarm the host once, not
+    // twenty times over.
+
+    public void Configure(
+        SoundDefinition sound,
+        PoolHost host,
+        int prewarm = 0)
+    {
+        definition = sound;
+        poolHost = host;
+        prewarmVoices = prewarm;
+
+        if (!didAwake)
+        {
+            return;
+        }
+
+        if (poolHost == null && localPool == null)
+        {
+            localPool = new ObjectPool();
+        }
+
+        EnsurePoolRegistered();
     }
 
 

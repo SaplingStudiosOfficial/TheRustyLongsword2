@@ -167,4 +167,44 @@ public class SoundShaper
 
         return moved;
     }
+
+
+#if UNITY_EDITOR
+
+    // =========================================================
+    // EDITOR SETUP
+    // =========================================================
+    //
+    // For tools that build sound assets - see
+    // CrybtAudioGenerator. Editor only; nothing at runtime
+    // rewrites a shaper.
+
+    public void EditorSetNone()
+    {
+        mode = SoundVariationMode.None;
+    }
+
+
+    public void EditorSetRandom(float lowValue, float highValue)
+    {
+        mode = SoundVariationMode.Random;
+        low = lowValue;
+        high = highValue;
+    }
+
+
+    public void EditorSetStep(
+        float lowValue,
+        float highValue,
+        float stepValue,
+        SoundStepWrap wrapMode)
+    {
+        mode = SoundVariationMode.Step;
+        low = lowValue;
+        high = highValue;
+        step = stepValue;
+        wrap = wrapMode;
+    }
+
+#endif
 }

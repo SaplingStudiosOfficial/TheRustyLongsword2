@@ -253,4 +253,83 @@ public class SoundSettings
             volumeShaper.Evaluate(volume, travel)
         );
     }
+
+
+#if UNITY_EDITOR
+
+    // =========================================================
+    // EDITOR SETUP
+    // =========================================================
+    //
+    // For tools that build sound assets - see
+    // CrybtAudioGenerator. Split into small pieces rather than
+    // one fourteen-argument call, so a generator table reads
+    // as what it changes rather than as a row of magic numbers.
+
+    public void EditorInitialise(
+        AudioClip clip,
+        SoundPlaybackMode playbackMode,
+        float baseVolume,
+        AudioMixerGroup group)
+    {
+        clips = clip != null
+            ? new[] { clip }
+            : new AudioClip[0];
+
+        playback = playbackMode;
+        volume = baseVolume;
+
+        if (group != null)
+        {
+            routing = SoundMixerRouting.Override;
+            outputGroup = group;
+        }
+        else
+        {
+            routing = SoundMixerRouting.Inherit;
+            outputGroup = null;
+        }
+    }
+
+
+    public void EditorSetRandomPitch(float low, float high)
+    {
+        pitchUnit = SoundPitchUnit.Multiplier;
+        pitchShaper.EditorSetRandom(low, high);
+    }
+
+
+    public void EditorSetMusicalStep(
+        MusicalScale musicalScale,
+        float low,
+        float high,
+        float step,
+        float resetSeconds)
+    {
+        pitchUnit = SoundPitchUnit.MusicalSteps;
+        scale = musicalScale;
+        progressionResetSeconds = resetSeconds;
+
+        pitchShaper.EditorSetStep(
+            low,
+            high,
+            step,
+            SoundStepWrap.Loop
+        );
+    }
+
+
+    public void EditorSetFades(float fadeIn, float fadeOut)
+    {
+        fadeInSeconds = fadeIn;
+        fadeOutSeconds = fadeOut;
+    }
+
+
+    public void EditorSetIgnoreListenerPause(bool value)
+    {
+        ignoreListenerPause = value;
+    }
+
+#endif
 }

@@ -49,4 +49,14 @@ public class SoundDefinition : ScriptableObject
     public SoundSettings Settings => settings;
 
     public string Description => description;
+
+
+#if UNITY_EDITOR
+
+    public void EditorSetDescription(string text)
+    {
+        description = text;
+    }
+
+#endif
 }

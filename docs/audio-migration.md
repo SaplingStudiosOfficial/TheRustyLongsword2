@@ -27,12 +27,15 @@ Every script named below is **frozen** under `code-index.md` §0. None of it was
 
 ## The mixer
 
-`Assets/WorldSound.mixer` has **one group, `Master`**, with **one exposed parameter,
-`MasterVolume`**, one `Attenuation` effect and one snapshot. There is no Music / SFX / UI split.
+`Assets/WorldSound.mixer` had **one group, `Master`**, with **one exposed parameter,
+`MasterVolume`**, one `Attenuation` effect and one snapshot — no Music / SFX / UI split.
+It now has all three as children of `Master`.
 
-### Manual step — adding the groups
+### Manual step — adding the groups (DONE)
 
-Mixer assets are not safe to edit as text, so this is done by hand, once, in the Editor:
+`Master` now has `Music`, `SFX` and `UI` children, exposed as `MusicVolume`, `SfxVolume`
+and `UiVolume`. `Master` and `MasterVolume` were not touched. Kept below for the record,
+and for whoever has to do it again on another mixer:
 
 1. `Window > Audio > Audio Mixer`, select **WorldSound**.
 2. On the **Groups** panel, right-click `Master` → **Add child group**. Name it `Music`.
@@ -155,11 +158,13 @@ Not audio. These are the drink-mixing minigame.
 - **`3DEnviroment.unity` has 18 AudioListeners.** Unity expects exactly one and behaves
   unpredictably with more. This predates everything here and is frozen.
 - **~140 AudioSources** exist across the scenes, all in frozen territory.
-- **`Crybt.unity` has zero AudioSources** and one AudioListener. Crybt audio is green-field.
-- **31 clips are already committed and unreferenced** under `Assets/AudioLines/CryptAudio/` —
-  20 in `In-GameEffects/`, 11 in `UIEffectsAudio/` — named for exactly the events the Crybt has
-  (`DeckShuffle`, `MonsterSpawn`, `CardPlay`, `ScoreCounterTick`, `ErrorInvalidActionBuzz` and so
-  on). Wiring those up is its own piece of work.
+- **`Crybt.unity` has zero authored AudioSources** and one AudioListener. Crybt audio now
+  runs entirely on pooled voices created at runtime, so that stays true.
+- **23 of the 31 committed clips are now in use** through `CrybtSoundTable`. The eight not
+  yet spoken for are `MonsterAttack`, `MonsterHurtStagger`, `PlayerHeal`,
+  `AttackBlockedParried`, `ChestDoorOpenInCrypt`, `SaveConfirmation`, `SliderTick`,
+  `PauseUnpause` and `BackCancel` — each needs a game event that does not exist yet
+  (there is no heal, no block, no pause and no save in the Crybt).
 - **A `SoundSettings` ScriptableObject existed on the reverted refactor branch** and is mentioned in
   `code-index.md` §9 and in a stale comment at `Core/Editor/DefaultDataAssetGenerator.cs:30`. That
   type is **not** this one, does not exist on this branch, and should not be referenced.
