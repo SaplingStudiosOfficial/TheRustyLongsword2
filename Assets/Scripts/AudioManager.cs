@@ -137,11 +137,5 @@ public class AudioManager : MonoBehaviour
             }
             
         }
-
-        IEnumerator Wait()
-        {
-            yield return new WaitForSeconds(1f);
-        }
-
     }
 }

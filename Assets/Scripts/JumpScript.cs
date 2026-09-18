@@ -15,7 +15,6 @@ public class JumpScript : MonoBehaviour
 
     [SerializeField] private float jumpHeight = 5f;
     [SerializeField] private float gravity = -9.81f;
-    private bool jumpPressed = false;
 
     private bool isSliding;
     private Vector3 slopeSlideVelocity;

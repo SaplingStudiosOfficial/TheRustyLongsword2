@@ -48,22 +48,10 @@ public class CaveIntro : MonoBehaviour
             );
 
         // Smooth ease-in / ease-out.
-        float easedT;
-
-        if (t < 0.5f)
-        {
-            easedT =
-                2f * t * t;
-        }
-        else
-        {
-            easedT =
-                1f
-                - Mathf.Pow(
-                    -2f * t + 2f,
-                    2f
-                ) / 2f;
-        }
+        // Shared with the card movement so the whole scene
+        // opens with the same feel.
+        float easedT =
+            Easing.QuadInOut(t);
 
         Cave_Left.position =
             Vector3.Lerp(

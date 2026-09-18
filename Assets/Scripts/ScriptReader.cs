@@ -25,7 +25,11 @@ public class ScriptReader : MonoBehaviour
 
     public float typingSpeed;
     public bool canContinue = true;
-    public string name;
+
+    // 'new' because this deliberately hides UnityEngine.Object.name.
+    // It is the SPEAKER's name and the scenes have real authored
+    // values in it ("MayorK", "Henson"), so it must not be renamed.
+    public new string name;
 
     public AudioClip[] audioLines;
     public AudioSource player;

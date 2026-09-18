@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Crybt — Player's Guide</title>
+<style>
+  :root{
+    --ink:#f6f2ff;
+    --ink-dim:#cdbfe9;
+    --ink-faint:#9385b3;
+    --bg:#150c26;
+    --bg-raised:#1f1438;
+    --bg-sunken:#0b0618;
+    --line:#4a3a78;
+    --amber:#ffb020;
+    --amber-soft:#ffd35c;
+    --teal:#2fe6c4;
+    --rose:#ff5c72;
+    --violet:#b48cff;
+    --green:#4ee08a;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"Cascadia Mono",Consolas,"SF Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1000px 560px at 15% -10%, rgba(255,176,32,.14) 0%, transparent 60%),
+      radial-gradient(900px 620px at 100% 10%, rgba(47,230,196,.12) 0%, transparent 55%),
+      radial-gradient(1100px 700px at 50% 120%, rgba(180,140,255,.16) 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.62;
+  }
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px 96px}
+
+  /* ---------- masthead ---------- */
+  header.top{
+    text-align:center;
+    padding:72px 0 44px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:8px;
+  }
+  .kicker{
+    font-family:var(--sans);
+    text-transform:uppercase;
+    letter-spacing:.32em;
+    font-size:11px;
+    color:var(--teal);
+    margin:0 0 18px;
+  }
+  h1{
+    font-family:var(--serif);
+    font-size:clamp(2.4rem,6vw,4rem);
+    line-height:1.05;
+    margin:0 0 12px;
+    font-weight:600;
+    letter-spacing:-.01em;
+    color:var(--amber-soft);
+    background:linear-gradient(120deg, var(--amber-soft) 15%, var(--teal) 85%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    text-shadow:0 0 42px rgba(255,176,32,.25);
+  }
+  .sub{
+    font-family:var(--serif);
+    font-style:italic;
+    font-size:clamp(1rem,2.2vw,1.25rem);
+    color:var(--ink-dim);
+    margin:0 auto;
+    max-width:46ch;
+  }
+  .credits{
+    margin-top:26px;
+    font-size:12.5px;
+    color:var(--ink-faint);
+    letter-spacing:.04em;
+  }
+
+  /* ---------- table of contents ---------- */
+  nav.toc{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:2px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    margin:40px 0 64px;
+  }
+  nav.toc a{
+    background:var(--bg-raised);
+    padding:14px 16px;
+    text-decoration:none;
+    color:var(--ink-dim);
+    font-size:13.5px;
+    display:flex;
+    gap:10px;
+    align-items:baseline;
+    transition:background .15s,color .15s;
+  }
+  nav.toc a:hover{background:#2c1f4d;color:var(--ink)}
+  nav.toc a b{color:var(--teal);font-variant-numeric:tabular-nums;font-weight:600}
+
+  /* ---------- sections ---------- */
+  section{margin:0 0 76px;scroll-margin-top:24px}
+  h2{
+    font-family:var(--serif);
+    font-size:1.85rem;
+    font-weight:600;
+    margin:0 0 6px;
+    letter-spacing:-.005em;
+  }
+  h2 .num{
+    color:var(--teal);
+    font-family:var(--sans);
+    font-size:.72rem;
+    letter-spacing:.22em;
+    display:block;
+    margin-bottom:10px;
+    font-weight:600;
+  }
+  h3{
+    font-family:var(--serif);
+    font-size:1.18rem;
+    font-weight:600;
+    margin:34px 0 8px;
+    color:var(--amber-soft);
+  }
+  .lede{color:var(--ink-dim);max-width:68ch;margin:0 0 22px}
+  p{max-width:72ch}
+  hr.rule{border:0;border-top:1px solid var(--line);margin:0 0 28px}
+
+  ul,ol{max-width:70ch;padding-left:20px}
+  li{margin:7px 0}
+  li::marker{color:var(--amber)}
+  strong{color:#fff;font-weight:600}
+  em.q{font-family:var(--serif);color:var(--ink-dim)}
+
+  /* ---------- tables ---------- */
+  .tablewrap{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:460px}
+  th,td{padding:11px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+  thead th{
+    background:var(--bg-sunken);
+    color:var(--teal);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.16em;
+    font-weight:600;
+  }
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:nth-child(even){background:rgba(180,140,255,.05)}
+  tbody tr:hover{background:rgba(47,230,196,.06)}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* ---------- key caps ---------- */
+  kbd{
+    font-family:var(--mono);
+    font-size:12px;
+    background:#2a1c4a;
+    border:1px solid var(--line);
+    border-bottom:2px solid var(--teal);
+    border-radius:5px;
+    padding:2px 7px;
+    color:var(--amber-soft);
+    white-space:nowrap;
+  }
+
+  /* ---------- cards / callouts ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:22px 0}
+  .card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-left:3px solid var(--amber);
+    border-radius:8px;
+    padding:18px 20px;
+  }
+  .card:nth-child(3n+2){border-left-color:var(--teal)}
+  .card:nth-child(3n+3){border-left-color:var(--violet)}
+  .card h4{margin:0 0 6px;font-family:var(--serif);font-size:1.05rem;color:#fff;font-weight:600}
+  .card p{margin:0;font-size:14px;color:var(--ink-dim)}
+  .card .tag{
+    display:inline-block;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--amber);margin-bottom:8px;
+  }
+
+  .note{
+    background:var(--bg-sunken);
+    border:1px solid var(--line);
+    border-left:3px solid var(--teal);
+    border-radius:8px;
+    padding:16px 20px;
+    margin:22px 0;
+    font-size:14.5px;
+    color:var(--ink-dim);
+  }
+  .note b{color:var(--amber-soft)}
+  .note.good{border-left-color:var(--green)}
+  .note.good b{color:var(--green)}
+  .note.warn{border-left-color:var(--rose)}
+  .note.warn b{color:var(--rose)}
+
+  /* ---------- footer ---------- */
+  footer{
+    border-top:1px solid var(--line);
+    padding-top:26px;
+    color:var(--ink-faint);
+    font-size:13px;
+  }
+  a{color:var(--teal)}
+
+  @media print{
+    body{background:#fff;color:#111}
+    nav.toc{display:none}
+    .card,.note,.tablewrap{border-color:#ccc}
+    h1{-webkit-text-fill-color:initial;background:none;text-shadow:none}
+    h1,h2,h3,strong,.card h4{color:#000}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">Player's Guide</p>
+  <h1>The Crybt</h1>
+  <p class="sub">A roguelike card crawl scored like cribbage, hidden behind the cave in The Rusty Longsword.</p>
+  <p class="credits">The Rusty Longsword &middot; Sapling Studios &middot; Developer John Gonzalez &middot; Music Sam Shandley</p>
+</header>
+
+<nav class="toc">
+  <a href="#overview"><b>01</b> Overview</a>
+  <a href="#controls"><b>02</b> Controls</a>
+  <a href="#crawl"><b>03</b> The Crawl</a>
+  <a href="#scoring"><b>04</b> Scoring</a>
+  <a href="#boons"><b>05</b> Crawls &amp; the Boon Shop</a>
+  <a href="#losing"><b>06</b> Losing</a>
+  <a href="#tips"><b>07</b> Tips</a>
+</nav>
+
+<!-- ================= 01 ================= -->
+<section id="overview">
+  <h2><span class="num">01</span>Overview</h2>
+  <hr class="rule">
+  <p class="lede">The Crybt is a complete card game in its own right: a roguelike crawl scored like cribbage. You start with twenty health and keep crawling until you run out.</p>
+</section>
+
+<!-- ================= 02 ================= -->
+<section id="controls">
+  <h2><span class="num">02</span>Controls</h2>
+  <hr class="rule">
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Input</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Left click on a card</td><td>Select it as your Offering, your new Hero, or add it to the combination you are building.</td></tr>
+      <tr><td>Left click on a button</td><td>Confirm a combination, end the encounter, keep or switch your Hero, peek the monster, or buy a Boon.</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Pause and unpause.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ================= 03 ================= -->
+<section id="crawl">
+  <h2><span class="num">03</span>The Crawl</h2>
+  <hr class="rule">
+
+  <h3>The pieces</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Zone</th><th>What it holds</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Deck</strong></td><td>A standard fifty-two card deck, shuffled at the start. When it empties, the discard pile is reshuffled back in.</td></tr>
+      <tr><td><strong>Hand</strong></td><td>Five cards drawn at the start of each encounter.</td></tr>
+      <tr><td><strong>Offering</strong></td><td>Cards you sacrifice. This pile becomes your shopping money at the end of a crawl.</td></tr>
+      <tr><td><strong>Hero</strong></td><td>One card that fights alongside your hand and can be used in scoring.</td></tr>
+      <tr><td><strong>Monster</strong></td><td>The card you are up against. Its attack power is its face value, with jacks, queens, and kings worth ten.</td></tr>
+      <tr><td><strong>Graveyard</strong></td><td>Monsters you have beaten. You can pull a graveyard card out to replace your Hero, and each one adds to your end-of-crawl money.</td></tr>
+      <tr><td><strong>Discard</strong></td><td>Everything spent. Recycled into the deck when the deck runs dry.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>One encounter, step by step</h3>
+  <ol>
+    <li><strong>Draw five.</strong> Your hand fills from the deck.</li>
+    <li><strong>Make an offering.</strong> Click one card from your hand to trash it into the Offering pile. You are now playing the encounter with four cards.</li>
+    <li><strong>Meet your Hero.</strong> A card is drawn face up. Choose <strong>Keep Hero</strong>, or <strong>Switch Hero</strong> to swap it for any card in your Graveyard, which discards the drawn Hero.</li>
+    <li><strong>Face the monster.</strong> A card flips up as the monster and its attack power is displayed.</li>
+    <li><strong>Build combinations.</strong> Click cards from your hand and your Hero to select them, then hit <strong>Confirm</strong> to score that exact group. Score as many separate groups as you can find.</li>
+    <li><strong>Resolve.</strong> Hit <strong>End Encounter</strong>. Damage is the monster's attack power minus your total score, never below zero.</li>
+  </ol>
+
+  <div class="note good"><b>Zero damage kills.</b> If your score matches or beats the monster's attack power, you take nothing and the monster goes to your Graveyard, where it becomes a future Hero and end-of-crawl money. Falling short is not a loss, only a partial one: every point you scored is a point of damage you did not take.</div>
+</section>
+
+<!-- ================= 04 ================= -->
+<section id="scoring">
+  <h2><span class="num">04</span>Scoring</h2>
+  <hr class="rule">
+  <p class="lede">Scoring is cribbage-flavoured with one strict rule attached: <strong>the exact cards you selected must themselves form the combination.</strong> The game does not hunt for hidden sub-combinations inside a sloppy selection. Selecting two, three, and four alongside a king is not a run, it is nothing.</p>
+
+  <h3>Card values</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Card</th><th class="num">Value (fifteens)</th><th class="num">Rank (pairs &amp; runs)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ace</strong></td><td class="num">1</td><td class="num">1</td></tr>
+      <tr><td>2 – 10</td><td class="num">Same as face</td><td class="num">Same as face</td></tr>
+      <tr><td>Jack</td><td class="num">10</td><td class="num">11</td></tr>
+      <tr><td>Queen</td><td class="num">10</td><td class="num">12</td></tr>
+      <tr><td>King</td><td class="num">10</td><td class="num">13</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>An Ace is worth <strong>1 point</strong>, never 11, anywhere in scoring. It counts as 1 toward a fifteen, and its rank of 1 puts it at the low end of a run, directly below a 2. There is no wraparound, so a King, Ace, 2 grouping does not form a run.</p>
+
+  <h3>Combinations</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Combination</th><th>Requirement</th><th class="num">Points</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Fifteen</strong></td><td>The whole selection totals exactly fifteen.</td><td class="num">2</td></tr>
+      <tr><td><strong>Pair</strong></td><td>Two cards of the same rank.</td><td class="num">2</td></tr>
+      <tr><td><strong>Three of a kind</strong></td><td>Three cards of the same rank.</td><td class="num">6</td></tr>
+      <tr><td><strong>Four of a kind</strong></td><td>Four cards of the same rank.</td><td class="num">12</td></tr>
+      <tr><td><strong>Run</strong></td><td>Three or more cards in consecutive rank.</td><td class="num">1 per card</td></tr>
+      <tr><td><strong>Four-card flush</strong></td><td>Exactly four cards, all one suit.</td><td class="num">4</td></tr>
+      <tr><td><strong>Five-card flush</strong></td><td>Exactly five cards, all one suit.</td><td class="num">5</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Rules stack on the same selection. A five-card straight flush scores five for the run and five for the flush. Seven and eight together score two as a fifteen. A pair of sevens plus an ace totals fifteen for two, though it is not also a pair, because the pair rule needs every selected card to share a rank.</p>
+
+  <div class="note warn"><b>The same cards score only once.</b> Each unique group of cards can be confirmed for points a single time per encounter. Re-selecting the identical set gets you nothing, so look for genuinely different groupings, not repeats.</div>
+</section>
+
+<!-- ================= 05 ================= -->
+<section id="boons">
+  <h2><span class="num">05</span>Crawls &amp; the Boon Shop</h2>
+  <hr class="rule">
+  <p class="lede">Four encounters make a crawl. At the end of one, a final card is added to your Offering and the whole pile is cashed out:</p>
+  <ul>
+    <li>Every combination of offering cards that totals fifteen pays <strong>two points</strong>, and here the game does search every subset for you.</li>
+    <li>Every pair among the offering cards pays <strong>two points</strong>.</li>
+    <li>Every card in your Graveyard pays <strong>one point</strong>.</li>
+  </ul>
+
+  <p>Those points go straight into the Boon Shop.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Boon</th><th class="num">Cost</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Torch</strong></td><td class="num">2</td><td>Adds a Peek button while you are choosing your Hero, revealing the monster's attack power before you commit.</td></tr>
+      <tr><td><strong>Warding Sigil</strong></td><td class="num">4</td><td>Purchasable, but its effect is not wired up in this build.</td></tr>
+      <tr><td><strong>Bone Charm</strong></td><td class="num">6</td><td>Purchasable, effect not yet implemented.</td></tr>
+      <tr><td><strong>Holy Water</strong></td><td class="num">8</td><td>Purchasable, effect not yet implemented.</td></tr>
+      <tr><td><strong>Black Grimoire</strong></td><td class="num">10</td><td>Purchasable, effect not yet implemented.</td></tr>
+      <tr><td><strong>Broken Mirror</strong></td><td class="num">12</td><td>Purchasable, effect not yet implemented.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn"><b>Nothing carries over.</b> Boons last exactly one crawl and then expire. Unspent points are wiped at the end of the shop. Spend everything, every time. Right now the Torch is the only purchase that changes play, so two points on a Torch is the whole optimal shop.</div>
+</section>
+
+<!-- ================= 06 ================= -->
+<section id="losing">
+  <h2><span class="num">06</span>Losing</h2>
+  <hr class="rule">
+  <p>Health only goes down. There is no healing in the current build, so a run is a question of how far you can stretch twenty points. At zero, the game ends and tells you which crawl you reached. That number is your score.</p>
+</section>
+
+<!-- ================= 07 ================= -->
+<section id="tips">
+  <h2><span class="num">07</span>Tips</h2>
+  <hr class="rule">
+
+  <div class="grid">
+    <div class="card">
+      <h4>Select precisely</h4>
+      <p>Extra cards in a selection do not add points, they cancel the combination. Confirm small, exact groups rather than one big hopeful pile.</p>
+    </div>
+    <div class="card">
+      <h4>Feed the Graveyard</h4>
+      <p>Every monster you beat is worth a point at the shop and becomes a Hero you can swap in later. Killing monsters compounds; surviving them does not.</p>
+    </div>
+    <div class="card">
+      <h4>Offer your fifteens</h4>
+      <p>Offering points reward fifteens and pairs. When a hand card is useless for the encounter but pairs nicely with what you have already trashed, that is the one to sacrifice.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>The Crybt, part of Zeblock and Rana in The Rusty Longsword. Developed by John Gonzalez at Sapling Studios, with music by Sam Shandley. This guide was written from the game's own scripts and describes the current build, including a few Boons that are visibly present but not yet implemented.</p>
+</footer>
+
+</div>
+</body>
+</html>

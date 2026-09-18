@@ -11,7 +11,11 @@ public class GeneralMouthMover : MonoBehaviour
     [SerializeField] TextMeshProUGUI nameTag;
     [SerializeField] TextMeshProUGUI bodyText;
     [SerializeField] ScriptReader DialogManager;
-    public string name;
+
+    // 'new' because this deliberately hides UnityEngine.Object.name.
+    // It is the SPEAKER's name and the scenes have real authored
+    // values in it, so it must not be renamed.
+    public new string name;
 
     Color color;
 
