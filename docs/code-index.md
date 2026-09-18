@@ -24,12 +24,15 @@ legacy or unreachable.
 | `Assets/Scripts/Core/Logging/GameLog.cs` | Used by `Card`, `CrybtManager`, `CrybtScoring` |
 | `Assets/Scripts/Core/Extensions/UiVisibilityExtensions.cs` | `SetVisible`, used by `EncounterHud` |
 | `Assets/Scripts/Core/Editor/DefaultDataAssetGenerator.cs` | Creates `CrybtRules` + the six `BoonDefinition` assets |
+| `Assets/Scripts/Core/Audio/**` | `SoundPlayer` and its supporting types — see §11 |
+| `Assets/Scripts/Core/Pooling/**` | `ObjectPool`, `PoolHost`, `PoolKeys` — see §11 |
 | `Assets/csc.rsp` | Project-wide `CS0649` suppression — **options only, never comments** (see below) |
 | `Assets/Resources/Crybt/**` | `CrybtRules` and the six `BoonDefinition` assets, loaded at runtime when unassigned |
 | `Assets/Scenes/Crybt.unity` | Via the Editor only — never by editing YAML |
 | `docs/**` | This index and the player's guide |
 
-That is the entire surface. Four files in `Core/`, one scene, two folders.
+That is the entire surface. Four files plus two shared folders in `Core/`, one scene,
+two Crybt folders.
 
 > **`csc.rsp` has no comment syntax in Unity 2020.3.** Unity splits the file on
 > whitespace and passes every token to the compiler as an argument — it does
@@ -658,3 +661,58 @@ are 30% of the game's code between them. `CrybtScoring`, `CrybtCombat`,
 with confidence. Everything in §4 with a 1/1 instance count is a singleton
 manager wired by hand in one scene; changing its public surface means re-wiring
 the Inspector.
+
+---
+
+## 11. Shared code added on `feature/audio`
+
+Two new folders under `Core/`, both additive. Nothing that already plays audio changed,
+and nothing here is wired into a scene yet.
+
+### `Core/Audio/**`
+
+| File | Lines | What |
+|---|---:|---|
+| `SoundPlayer.cs` | ~950 | The component. Plays a sound against any AudioSource, one-shot or looping, with optional pitch and volume variation and mixer routing the caller can override at runtime. |
+| `SoundSettings.cs` | ~250 | Everything that describes a sound. Held inline by `SoundPlayer` or inside a `SoundDefinition`. |
+| `SoundDefinition.cs` | ~50 | ScriptableObject preset. `Assets > Create > Audio > Sound`. |
+| `SoundShaper.cs` | ~160 | Picks the next pitch or volume: none, random, or stepping with loop/ping-pong wrap. |
+| `PitchScale.cs` | ~160 | Scale step to pitch, `2^(n/12)`. Pure — no Unity state, no component. |
+| `MixerVolume.cs` | ~160 | Linear volume to decibels and back, plus a guarded `SetFloat`. |
+| `SoundEnums.cs` | ~130 | The enums. |
+
+### `Core/Pooling/**`
+
+| File | Lines | What |
+|---|---:|---|
+| `ObjectPool.cs` | ~390 | String-keyed pool. `Get<T>(key)`, `Release(key, item)`, `Prewarm`, `Clear`, counts. General purpose — not audio-specific. |
+| `PoolHost.cs` | ~55 | MonoBehaviour that owns one `ObjectPool` and parents pooled GameObjects. |
+| `PoolKeys.cs` | ~30 | The keys, as `const string`. |
+
+### Invariants this layout protects
+
+- **Pitch is per-voice, not per-source.** Setting pitch on a shared AudioSource re-pitches
+  every one-shot still ringing out on it. Each overlapping shot borrows its own voice from
+  the pool, configured from the template source — mixer group, spatial blend, distances and
+  rolloff copied across, so a pooled 3D sound stays where it was.
+- **No mutable state in a static class.** `ObjectPool` is an ordinary object that `PoolHost`
+  owns. `PitchScale`, `MixerVolume`, `PoolKeys` are static and hold nothing that can change.
+- **No progression state on a ScriptableObject.** A `SoundDefinition` can be shared by twenty
+  components, so a cursor stored on the asset would be shared with them. `SoundShaper` is
+  pure; `SoundPlayer` owns the cursor.
+- **Nothing is pulled.** No `FindObjectOfType`, no singleton. The AudioSource and the
+  `PoolHost` are assigned in the Inspector or handed in at the call site, the same way
+  `Card` is given its `ICardClickHandler`.
+
+### Enum ordering
+
+`SoundVariationMode`, `SoundStepWrap`, `SoundPitchUnit`, `MusicalScale`, `SoundClipPickMode`,
+`SoundPlaybackMode` and `SoundMixerRouting` are serialized as integers, exactly like
+`EncounterStage`. **Do not reorder them.** Add new members at the end.
+
+### Still outstanding
+
+- The three mixer groups (`Music`, `SFX`, `UI`) under `WorldSound.mixer`'s `Master` have not
+  been created. That is a manual Editor step, written up in `docs/audio-migration.md`.
+- No scene references any of this yet. `Crybt.unity` still has zero AudioSources.
+- The 31 clips in `Assets/AudioLines/CryptAudio/` are still unreferenced by anything.

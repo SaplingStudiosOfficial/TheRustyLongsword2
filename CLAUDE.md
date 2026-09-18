@@ -25,15 +25,23 @@ Editable:
 - `Assets/Scripts/CrybtManager/**`
 - `Assets/Scripts/Core/Math/Easing.cs`, `Core/Logging/GameLog.cs`,
   `Core/Extensions/UiVisibilityExtensions.cs`, `Core/Editor/DefaultDataAssetGenerator.cs`
+- `Assets/Scripts/Core/Audio/**` — the reusable `SoundPlayer` and its supporting types
+- `Assets/Scripts/Core/Pooling/**` — the general-purpose `ObjectPool`
 - `Assets/Resources/Crybt/**` (the `CrybtRules` and six `BoonDefinition` assets)
 - `Assets/Scenes/Crybt.unity` — **via the Unity Editor only, never by editing YAML**
 - `Assets/csc.rsp`, `docs/**`
 
 Frozen: everything else — `PlayerController`, `SaveSystem`/`SaveManagerScript`, all
-dialogue and Ink code, coins/collectables, movement, the night loop, taverns, audio,
-and every scene other than `Crybt`. Read frozen files freely to understand the game;
-do not edit, refactor, tidy, or bug-fix them. If Crybt work genuinely needs a frozen
-file changed, stop and ask.
+dialogue and Ink code, coins/collectables, movement, the night loop, taverns, the
+**legacy** audio scripts, and every scene other than `Crybt`. Read frozen files freely
+to understand the game; do not edit, refactor, tidy, or bug-fix them. If Crybt work
+genuinely needs a frozen file changed, stop and ask.
+
+`Core/Audio/**` is new and additive; it does not replace anything. `MasterAudioManager`,
+`AudioManager`, `SetVolumeSlider`, `ChangeWorldMusic` and `fadeInAudio` stay frozen and
+keep working exactly as they do — `MasterAudioManager` still owns `WorldSound.mixer`'s
+`MasterVolume` parameter, and nothing in `Core/Audio` writes it. What would eventually
+migrate, and what would have to happen first, is recorded in `docs/audio-migration.md`.
 
 An earlier pass refactored ~45 frozen files and was reverted; it lives on
 `backup/refactor-solid-full`. Do not reapply it, and do not reference the types it
