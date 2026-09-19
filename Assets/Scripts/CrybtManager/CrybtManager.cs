@@ -173,6 +173,15 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
     // CrybtRules because they already hold values authored in
     // the Crybt scene.
 
+    [Header("Audio")]
+
+    [SerializeField]
+    [Tooltip("Optional. Left empty, the CrybtAudio on this " +
+             "object is used. With neither, the Crybt runs " +
+             "silently - it is not a dependency.")]
+    private CrybtAudio crybtAudio;
+
+
     [Header("Player")]
 
     [SerializeField] private int Health = 20;
@@ -236,6 +245,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
     private void Start()
     {
+        EnsureAudio();
+
         EnsureRules();
 
         EnsureBoons();
@@ -257,7 +268,66 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
         Shuffle();
 
+        PlaySound(CrybtSound.Ambience);
+
         StartCrawl();
+    }
+
+
+    // =========================================================
+    // ENSURE AUDIO
+    // =========================================================
+    //
+    // Inspector wins, then the component on this object. Unlike
+    // the rules, there is no fallback and no error - a Crybt
+    // with no audio is a quiet Crybt, not a broken one, and
+    // saying so once is enough.
+
+    private void EnsureAudio()
+    {
+        if (crybtAudio != null)
+        {
+            return;
+        }
+
+        if (TryGetComponent(out CrybtAudio found))
+        {
+            crybtAudio = found;
+
+            return;
+        }
+
+        GameLog.Info(
+            "CrybtManager has no CrybtAudio. The Crybt will run "
+            + "silently. Add a CrybtAudio component to this "
+            + "object to hear it."
+        );
+    }
+
+
+    // =========================================================
+    // PLAY SOUND
+    // =========================================================
+    //
+    // Every hook in this file goes through here, so no call
+    // site needs a null check and audio can be removed from the
+    // scene without touching a line of the state machine.
+
+    private void PlaySound(CrybtSound id)
+    {
+        if (crybtAudio != null)
+        {
+            crybtAudio.Play(id);
+        }
+    }
+
+
+    private void ResetSoundProgression(CrybtSound id)
+    {
+        if (crybtAudio != null)
+        {
+            crybtAudio.ResetProgression(id);
+        }
     }
 
 
@@ -584,6 +654,11 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             if (cards[i] != null)
             {
                 cards[i].Bind(this);
+
+                // Cards report their own hover, so they need
+                // the audio pushed to them the same way the
+                // click handler is. 53 prefabs stay untouched.
+                cards[i].BindAudio(crybtAudio);
             }
         }
     }
@@ -632,6 +707,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
         RefreshHud();
 
+        PlaySound(CrybtSound.CrawlComplete);
+
         GameLog.Info(
             "Crawl "
             + crawlNumber
@@ -649,6 +726,11 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             "Offering Points available to spend: "
             + offeringPoints
         );
+
+        if (offeringPoints > 0)
+        {
+            PlaySound(CrybtSound.OfferingPointsEarned);
+        }
 
         // Reset purchases for the upcoming crawl.
         boonShop.ClearPurchases();
@@ -682,6 +764,13 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
         Hero.Clear();
         Monster.Clear();
+
+        // Each encounter's first combination should sound like
+        // a first combination, not like wherever the last
+        // encounter's streak left the tally.
+        ResetSoundProgression(CrybtSound.ScoreTick);
+
+        PlaySound(CrybtSound.EncounterStart);
 
         encounterNumber++;
 
@@ -750,6 +839,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
         selectedCard.DeactivateCard();
 
+        PlaySound(CrybtSound.CardPlay);
+
         MoveCards();
 
         DrawHero();
@@ -782,6 +873,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         currentStage =
             EncounterStage.ChoosingHero;
 
+        PlaySound(CrybtSound.CardDeal);
+
         MoveCards();
 
         RefreshHud();
@@ -812,6 +905,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             "Hero kept."
         );
 
+        PlaySound(CrybtSound.ButtonPress);
+
         currentStage =
             EncounterStage.StartingEncounter;
 
@@ -839,8 +934,12 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
                 "The Graveyard is empty."
             );
 
+            PlaySound(CrybtSound.ActionRefused);
+
             return;
         }
+
+        PlaySound(CrybtSound.ButtonPress);
 
         currentStage =
             EncounterStage.ChoosingHeroFromGraveyard;
@@ -903,6 +1002,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         Hero.Add(
             selectedCard
         );
+
+        PlaySound(CrybtSound.CardDiscard);
 
         GameLog.Info(
             oldHero.gameObject.name
@@ -967,6 +1068,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
                 "Torch is not active."
             );
 
+            PlaySound(CrybtSound.ActionRefused);
+
             return;
         }
 
@@ -975,6 +1078,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             GameLog.Info(
                 "Monster has already been peeked."
             );
+
+            PlaySound(CrybtSound.ActionRefused);
 
             return;
         }
@@ -1013,6 +1118,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             "Peeked Monster AP: "
             + displayedMonsterAttackPower
         );
+
+        PlaySound(CrybtSound.MonsterPeek);
 
         RefreshHud();
     }
@@ -1064,6 +1171,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             displayedMonsterAttackPower =
                 GetMonsterAttackPower(Monster[0]);
         }
+
+        PlaySound(CrybtSound.MonsterReveal);
 
         MoveCards();
 
@@ -1287,6 +1396,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
             selectedCard.DeselectCard();
 
+            PlaySound(CrybtSound.CardDeselect);
+
             GameLog.Info(
                 selectedCard.gameObject.name
                 + " removed from combination."
@@ -1301,6 +1412,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             );
 
             selectedCard.SelectCard();
+
+            PlaySound(CrybtSound.CardSelect);
 
             // Rank and suit are logged because a card whose
             // rank disagrees with its face looks like a
@@ -1349,6 +1462,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
                 "Select cards before confirming."
             );
 
+            PlaySound(CrybtSound.ActionRefused);
+
             return;
         }
 
@@ -1364,6 +1479,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             GameLog.Info(
                 "This combination has already been scored."
             );
+
+            PlaySound(CrybtSound.ActionRefused);
 
             ClearPlay();
 
@@ -1390,6 +1507,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
                 "That is not a scoring combination."
             );
 
+            PlaySound(CrybtSound.ActionRefused);
+
             ClearPlay();
 
             RefreshHud();
@@ -1403,6 +1522,17 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
         encounterScore +=
             points;
+
+        // The tally, and ONLY the tally. This button adds a
+        // combination to the score; it does not swing at
+        // anything, so it does not get the attack sound. The
+        // swing is in ResolveEncounter, where the score is
+        // actually spent on the Monster.
+        //
+        // The tick climbs a scale across successive
+        // combinations in one encounter, so a long streak reads
+        // as a run rather than as the same blip five times.
+        PlaySound(CrybtSound.ScoreTick);
 
         GameLog.Info(
             "Combination scored "
@@ -1563,6 +1693,12 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         );
 
 
+        // THE swing. Everything before this was the player
+        // building a number up; this is the moment it is spent
+        // on the Monster, and the sound straight after it says
+        // whether that worked.
+        PlaySound(CrybtSound.PlayerAttack);
+
         if (CrybtCombat.IsMonsterDefeated(damage))
         {
             GameLog.Info(
@@ -1613,6 +1749,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             defeatedMonster
         );
 
+        PlaySound(CrybtSound.MonsterDefeated);
+
         GameLog.Info(
             defeatedMonster.gameObject.name
             + " moved to Graveyard."
@@ -1641,6 +1779,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             + damage
             + " damage."
         );
+
+        PlaySound(CrybtSound.PlayerHurt);
 
         if (Health <= 0)
         {
@@ -1673,6 +1813,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         displayedMonsterAttackPower = null;
 
         RefreshHud();
+
+        PlaySound(CrybtSound.EncounterEnd);
 
         ClearPlay();
 
@@ -1758,6 +1900,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
     private void DrawHand()
     {
+        int dealt = 0;
+
         for (int i = 0;
             i < rules.HandSize;
             i++)
@@ -1778,6 +1922,16 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             );
 
             Deck.RemoveAt(0);
+
+            dealt++;
+        }
+
+        // One sound for the hand, not five stacked on the same
+        // frame - the cards are dealt instantly, so five copies
+        // would just be one loud copy.
+        if (dealt > 0)
+        {
+            PlaySound(CrybtSound.CardDeal);
         }
 
         MoveCards();
@@ -1806,6 +1960,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         );
 
         Deck.RemoveAt(0);
+
+        PlaySound(CrybtSound.CardDeal);
 
         GameLog.Info(
             "Final Offering card drawn."
@@ -1858,6 +2014,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             GameLog.Info(
                 "Not enough Offering Points."
             );
+
+            PlaySound(CrybtSound.ActionRefused);
 
             return false;
         }
@@ -1917,6 +2075,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
                 + " already purchased for the next Crawl."
             );
 
+            PlaySound(CrybtSound.ActionRefused);
+
             return;
         }
 
@@ -1938,6 +2098,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
                 + "asset once its effect is wired up."
             );
 
+            PlaySound(CrybtSound.ActionRefused);
+
             return;
         }
 
@@ -1947,6 +2109,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         }
 
         boonShop.MarkPurchased(id);
+
+        PlaySound(CrybtSound.BoonPurchased);
 
         GameLog.Info(
             boon.DisplayName
@@ -1987,6 +2151,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         {
             return;
         }
+
+        PlaySound(CrybtSound.BoonPhaseEnd);
 
         CleanUpCrawl();
 
@@ -2056,6 +2222,10 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
 
     private void Shuffle()
     {
+        // Covers the opening shuffle and every reshuffle of the
+        // Discard, because ReshuffleDiscard ends here too.
+        PlaySound(CrybtSound.DeckShuffle);
+
         for (int i = 0;
             i < Deck.Count;
             i++)
@@ -2115,6 +2285,8 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         displayedMonsterAttackPower = null;
 
         RefreshHud();
+
+        PlaySound(CrybtSound.PlayerDeath);
 
         GameLog.Info(
             "GAME OVER - Reached Crawl "

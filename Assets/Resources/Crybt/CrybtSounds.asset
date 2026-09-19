@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce2301e4e46bbca469ccedd4c963e710, type: 3}
+  m_Name: CrybtSounds
+  m_EditorClassIdentifier: 
+  entries:
+  - id: 0
+    sound: {fileID: 11400000, guid: 9396c63d687e92f46a069720c5195bb1, type: 2}
+  - id: 1
+    sound: {fileID: 11400000, guid: 14e90f3d7b9333249b0d9fa446f672ec, type: 2}
+  - id: 2
+    sound: {fileID: 11400000, guid: d1183da1b66c66043b96ab539fe84608, type: 2}
+  - id: 3
+    sound: {fileID: 11400000, guid: 7c3f973f79b80074289731dc0f188cfe, type: 2}
+  - id: 4
+    sound: {fileID: 11400000, guid: f9da8a4b0606ba14c9a67a382fc3f9cf, type: 2}
+  - id: 5
+    sound: {fileID: 11400000, guid: 750f79136732e3e44a9fbf3a35943a25, type: 2}
+  - id: 6
+    sound: {fileID: 11400000, guid: b19179bbfc4901940801ab808132866b, type: 2}
+  - id: 7
+    sound: {fileID: 11400000, guid: b507ffc1822a2b447a123579bfc9d943, type: 2}
+  - id: 8
+    sound: {fileID: 11400000, guid: 71f61f0dcc693c642bc95225b9ba15d2, type: 2}
+  - id: 9
+    sound: {fileID: 11400000, guid: ebb523c20349deb45983c97d252d4683, type: 2}
+  - id: 10
+    sound: {fileID: 11400000, guid: e12384fd4abff924e950b94894e785ae, type: 2}
+  - id: 11
+    sound: {fileID: 11400000, guid: c683679c77725ba419c0fd1df470adc8, type: 2}
+  - id: 12
+    sound: {fileID: 11400000, guid: 8cf6dbe6642bddc4ba7259b59430d755, type: 2}
+  - id: 13
+    sound: {fileID: 11400000, guid: 4ab3e193f526ee9438eecd838d870336, type: 2}
+  - id: 14
+    sound: {fileID: 11400000, guid: b0c1f507582742b498bbbddf4466cf3f, type: 2}
+  - id: 15
+    sound: {fileID: 11400000, guid: 2083678ad23205443b8800b05d0768f0, type: 2}
+  - id: 16
+    sound: {fileID: 11400000, guid: 81e5332c81020104e8c2a5a76bb04440, type: 2}
+  - id: 17
+    sound: {fileID: 11400000, guid: 7da5682470e61104c9bd6dc4e3fb80f4, type: 2}
+  - id: 18
+    sound: {fileID: 11400000, guid: 2a3f1a100b65c9a45a3e629b3699b5ff, type: 2}
+  - id: 19
+    sound: {fileID: 11400000, guid: e2f78e0aa0750954abf1cbf446070d74, type: 2}
+  - id: 20
+    sound: {fileID: 11400000, guid: acee44415bd70a949a318f39b57449cd, type: 2}
+  - id: 21
+    sound: {fileID: 11400000, guid: dccaf2d7b32fba54dbbf95ce0d959287, type: 2}
+  - id: 22
+    sound: {fileID: 11400000, guid: b663f96a70d47be44a904168609efd4b, type: 2}

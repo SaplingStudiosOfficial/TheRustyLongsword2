@@ -2954,6 +2954,7 @@ GameObject:
   - component: {fileID: 1497154508}
   - component: {fileID: 1497154509}
   - component: {fileID: 1497154510}
+  - component: {fileID: 1497154511}
   m_Layer: 0
   m_Name: CrybtManager
   m_TagString: Untagged
@@ -3023,6 +3024,7 @@ MonoBehaviour:
   OfferingSlot: {fileID: 1238785971}
   GraveyardSlot: {fileID: 784636591}
   cardSpacing: 140
+  crybtAudio: {fileID: 0}
   Health: 20
   Modifier: 1
   deckDefinition: {fileID: 11400000, guid: 2a30ddfa8e2e3724b94fd4561481b052, type: 2}
@@ -3060,6 +3062,22 @@ MonoBehaviour:
   autoBreakdownSize: {x: 559.382, y: 41.717}
   autoBreakdownFontScale: 0.25
   unknownAttackPowerText: '?'
+--- !u!114 &1497154511
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1497154507}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d126f195904cdd94e8e43d258ec144ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  table: {fileID: 11400000, guid: d0c1577b202390740b6e5eee1f012d74, type: 2}
+  poolHost: {fileID: 0}
+  groupOverride: {fileID: 0}
+  prewarmVoices: 6
 --- !u!1 &1606532831
 GameObject:
   m_ObjectHideFlags: 0
