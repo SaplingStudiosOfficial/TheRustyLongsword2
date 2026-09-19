@@ -150,7 +150,8 @@ public static class CrybtAudioGenerator
             "Monster matched and sent to the Graveyard."),
 
         Spec(CrybtSound.PlayerAttack, EffectsFolder + "PlayerAttack.wav", false, 0.90f, 0.93f, 1.07f,
-            "A combination scored. The hit, not the tally."),
+            "The swing, when the encounter resolves and the built-up score is spent on "
+            + "the Monster. Not the per-combination tally - that is ScoreTick."),
 
         Spec(CrybtSound.PlayerHurt, EffectsFolder + "PlayerTakesDamage.wav", false, 1.00f, 0.95f, 1.05f,
             "The Monster got through."),

@@ -3074,7 +3074,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d126f195904cdd94e8e43d258ec144ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  table: {fileID: 0}
+  table: {fileID: 11400000, guid: d0c1577b202390740b6e5eee1f012d74, type: 2}
   poolHost: {fileID: 0}
   groupOverride: {fileID: 0}
   prewarmVoices: 6

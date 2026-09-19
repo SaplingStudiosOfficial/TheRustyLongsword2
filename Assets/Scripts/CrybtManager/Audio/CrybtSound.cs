@@ -62,7 +62,9 @@ public enum CrybtSound
 
     MonsterDefeated = 11,
 
-    // A combination scored. The hit, not the tally.
+    // The swing. Not a scoring combination - the moment the
+    // encounter resolves and the score built up by those
+    // combinations is finally spent on the Monster.
     PlayerAttack = 12,
 
     PlayerHurt = 13,

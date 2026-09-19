@@ -17,27 +17,27 @@ MonoBehaviour:
   settings:
     clips:
     - {fileID: 8300000, guid: d46dda3e58d9b5544a391db295485903, type: 3}
-    pickMode: 2
+    pickMode: 0
     playback: 0
     ignoreListenerPause: 1
-    volume: 0.7
+    volume: 0.537
     volumeShaper:
-      mode: 0
-      low: 1
-      high: 1
+      mode: 2
+      low: 0.5
+      high: 5
       step: 1
-      wrap: 0
-    pitch: 1
+      wrap: 2
+    pitch: 0.5
     pitchUnit: 1
-    scale: 3
+    scale: 1
     pitchShaper:
       mode: 2
       low: 0
-      high: 11
+      high: 14
       step: 1
-      wrap: 0
-    progressionResetSeconds: 4
+      wrap: 2
+    progressionResetSeconds: 0
     routing: 1
-    outputGroup: {fileID: 2546010715904458052, guid: 845cde8cb90be474a9a061542ff6827f, type: 2}
+    outputGroup: {fileID: -1091903595848886032, guid: 845cde8cb90be474a9a061542ff6827f, type: 2}
     fadeInSeconds: 0
     fadeOutSeconds: 0

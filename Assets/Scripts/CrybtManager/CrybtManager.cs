@@ -1523,12 +1523,15 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
         encounterScore +=
             points;
 
-        // The hit, then the tally. The tally climbs a scale
-        // across successive combinations in one encounter, so a
-        // long streak reads as a run rather than as the same
-        // blip five times.
-        PlaySound(CrybtSound.PlayerAttack);
-
+        // The tally, and ONLY the tally. This button adds a
+        // combination to the score; it does not swing at
+        // anything, so it does not get the attack sound. The
+        // swing is in ResolveEncounter, where the score is
+        // actually spent on the Monster.
+        //
+        // The tick climbs a scale across successive
+        // combinations in one encounter, so a long streak reads
+        // as a run rather than as the same blip five times.
         PlaySound(CrybtSound.ScoreTick);
 
         GameLog.Info(
@@ -1689,6 +1692,12 @@ public class CrybtManager : MonoBehaviour, ICardClickHandler
             + damage
         );
 
+
+        // THE swing. Everything before this was the player
+        // building a number up; this is the moment it is spent
+        // on the Monster, and the sound straight after it says
+        // whether that worked.
+        PlaySound(CrybtSound.PlayerAttack);
 
         if (CrybtCombat.IsMonsterDefeated(damage))
         {

@@ -732,6 +732,11 @@ from the scene silences the game without touching the state machine. `Card` gain
 `BindAudio(CrybtAudio)` and plays a hover tick — pushed by the manager, so none of the
 53 card prefabs changed.
 
+`ConfirmCombination` (the sword button) plays **only** the score tick — it adds to the
+tally, it does not swing at anything. `PlayerAttack` sits in `ResolveEncounter`, the moment
+the built-up score is actually spent on the Monster, immediately before the defeated/hurt
+outcome sound.
+
 The score tick is the one sound that climbs. It starts at pitch 0.75 — a fourth below the
 recorded tick — and walks one note of the **major scale** per scoring combination, over
 fifteen notes and exactly two octaves, then **holds** on the top note rather than looping.
