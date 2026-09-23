@@ -88,6 +88,8 @@ public class Card : MonoBehaviour,
 
     private ICardClickHandler handler;
 
+    private CrybtAudio cardAudio;
+
 
     // =========================================================
     // INITIALIZATION
@@ -141,6 +143,24 @@ public class Card : MonoBehaviour,
     public void Bind(ICardClickHandler clickHandler)
     {
         handler = clickHandler;
+    }
+
+
+    // =========================================================
+    // BIND AUDIO
+    // =========================================================
+    //
+    // A card is the only thing that knows it has been hovered,
+    // so it is the only thing that can say so.
+    //
+    // Pushed in by the manager alongside the click handler,
+    // for the same reason: 53 card prefabs stay untouched, and
+    // a card never goes looking for anything. Null is fine and
+    // means a silent card.
+
+    public void BindAudio(CrybtAudio audio)
+    {
+        cardAudio = audio;
     }
 
 
@@ -387,6 +407,14 @@ public class Card : MonoBehaviour,
         if (!selected)
         {
             MoveToRaisedPosition();
+
+            // Deliberately inside this branch. Hovering a card
+            // that is already up produces no movement, so it
+            // should produce no sound either.
+            if (cardAudio != null)
+            {
+                cardAudio.Play(CrybtSound.CardHover);
+            }
         }
     }
 

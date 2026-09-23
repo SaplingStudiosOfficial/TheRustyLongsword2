@@ -25,15 +25,23 @@ Editable:
 - `Assets/Scripts/CrybtManager/**`
 - `Assets/Scripts/Core/Math/Easing.cs`, `Core/Logging/GameLog.cs`,
   `Core/Extensions/UiVisibilityExtensions.cs`, `Core/Editor/DefaultDataAssetGenerator.cs`
+- `Assets/Scripts/Core/Audio/**` — the reusable `SoundPlayer` and its supporting types
+- `Assets/Scripts/Core/Pooling/**` — the general-purpose `ObjectPool`
 - `Assets/Resources/Crybt/**` (the `CrybtRules` and six `BoonDefinition` assets)
 - `Assets/Scenes/Crybt.unity` — **via the Unity Editor only, never by editing YAML**
 - `Assets/csc.rsp`, `docs/**`
 
 Frozen: everything else — `PlayerController`, `SaveSystem`/`SaveManagerScript`, all
-dialogue and Ink code, coins/collectables, movement, the night loop, taverns, audio,
-and every scene other than `Crybt`. Read frozen files freely to understand the game;
-do not edit, refactor, tidy, or bug-fix them. If Crybt work genuinely needs a frozen
-file changed, stop and ask.
+dialogue and Ink code, coins/collectables, movement, the night loop, taverns, the
+**legacy** audio scripts, and every scene other than `Crybt`. Read frozen files freely
+to understand the game; do not edit, refactor, tidy, or bug-fix them. If Crybt work
+genuinely needs a frozen file changed, stop and ask.
+
+`Core/Audio/**` is new and additive; it does not replace anything. `MasterAudioManager`,
+`AudioManager`, `SetVolumeSlider`, `ChangeWorldMusic` and `fadeInAudio` stay frozen and
+keep working exactly as they do — `MasterAudioManager` still owns `WorldSound.mixer`'s
+`MasterVolume` parameter, and nothing in `Core/Audio` writes it. What would eventually
+migrate, and what would have to happen first, is recorded in `docs/audio-migration.md`.
 
 An earlier pass refactored ~45 frozen files and was reverted; it lives on
 `backup/refactor-solid-full`. Do not reapply it, and do not reference the types it
@@ -66,6 +74,11 @@ Editor menu tools (Editor-only, deleted once their migration has been run — se
 - `Tools > Generate Default Data Assets` — recreates `CrybtRules` + the six boons
 - `Tools > Crybt > Migrate HUD References` — copies legacy `CrybtManager` UI fields onto `EncounterHud`
 - `Tools > Crybt > Generate Card Definitions From Prefabs`
+- `Tools > Crybt > Generate Crybt Sound Assets` — builds one `SoundDefinition` per
+  `CrybtSound` plus the table `CrybtAudio` loads; safe to re-run, existing assets kept
+- `Tools > Crybt > Rebuild Crybt Sound Assets (Overwrite)` — the same, but re-applies the
+  generator's settings to assets that already exist, discarding hand edits; asks first.
+  This is the one to run after changing a sound's tuning in the generator table
 
 ## Runtime shape — what can actually be reached
 
@@ -85,9 +98,10 @@ Consequences worth keeping in mind:
 - The overworld Button points at `Crybt` instead of `InBar` deliberately, and predates
   this branch. Raise it; do not silently re-point it.
 
-`Resources.Load` is used in exactly one place — `CrybtManager` loading the Crybt tuning
-assets when the Inspector fields are empty. The asset GUID graph is otherwise complete,
-so "is this referenced by a scene or prefab?" is a reliable liveness test.
+`Resources.Load` is used in two places — `CrybtManager` loading the Crybt tuning assets,
+and `CrybtAudio` loading its sound table, both only when the Inspector fields are empty.
+The asset GUID graph is otherwise complete, so "is this referenced by a scene or
+prefab?" is a reliable liveness test.
 
 ## Crybt architecture
 
@@ -100,6 +114,7 @@ else. The split it enforces:
 | Data | `Data/CrybtRules.cs`, `BoonDefinition`, `CardDefinition`, `BoonId` | ScriptableObjects under `Assets/Resources/Crybt/` |
 | Runtime state | `Runtime/BoonShop.cs`, `EncounterStage.cs`, `ICardClickHandler.cs` | |
 | View | `View/EncounterHud.cs`, `View/EncounterView.cs` | Owns every `Button` and `Text` |
+| Audio | `Audio/CrybtAudio.cs`, `CrybtSoundTable`, `CrybtSound` | The manager says *what happened*; the table says what that sounds like |
 | Scene objects | `Card.cs` (53 instances), `CaveIntro`, `ShakeOnEnable`, `SimpleTextShadow` | |
 
 Two invariants this layout exists to protect:
@@ -110,7 +125,9 @@ Two invariants this layout exists to protect:
   `CrybtManager` never touches a widget. Every control gets exactly one assignment in
   `Render`, so "a button lingered into the wrong stage" is not expressible.
 - **Cards are pushed, not pulled.** `Card` never calls `FindObjectOfType`; the manager
-  calls `Card.Bind(ICardClickHandler)` (and `Bind(CardDefinition)` for its face data).
+  calls `Card.Bind(ICardClickHandler)` (and `Bind(CardDefinition)` for its face data,
+  and `BindAudio(CrybtAudio)` so a card can report its own hover). This is what keeps
+  the 53 card prefabs untouched when something new is wired in.
 
 `EncounterStage` values are serialized as integers in the Crybt scene — **do not reorder
 the enum.**

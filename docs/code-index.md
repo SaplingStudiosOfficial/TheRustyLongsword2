@@ -24,12 +24,15 @@ legacy or unreachable.
 | `Assets/Scripts/Core/Logging/GameLog.cs` | Used by `Card`, `CrybtManager`, `CrybtScoring` |
 | `Assets/Scripts/Core/Extensions/UiVisibilityExtensions.cs` | `SetVisible`, used by `EncounterHud` |
 | `Assets/Scripts/Core/Editor/DefaultDataAssetGenerator.cs` | Creates `CrybtRules` + the six `BoonDefinition` assets |
+| `Assets/Scripts/Core/Audio/**` | `SoundPlayer` and its supporting types — see §11 |
+| `Assets/Scripts/Core/Pooling/**` | `ObjectPool`, `PoolHost`, `PoolKeys` — see §11 |
 | `Assets/csc.rsp` | Project-wide `CS0649` suppression — **options only, never comments** (see below) |
 | `Assets/Resources/Crybt/**` | `CrybtRules` and the six `BoonDefinition` assets, loaded at runtime when unassigned |
 | `Assets/Scenes/Crybt.unity` | Via the Editor only — never by editing YAML |
 | `docs/**` | This index and the player's guide |
 
-That is the entire surface. Four files in `Core/`, one scene, two folders.
+That is the entire surface. Four files plus two shared folders in `Core/`, one scene,
+two Crybt folders.
 
 > **`csc.rsp` has no comment syntax in Unity 2020.3.** Unity splits the file on
 > whitespace and passes every token to the compiler as an argument — it does
@@ -658,3 +661,103 @@ are 30% of the game's code between them. `CrybtScoring`, `CrybtCombat`,
 with confidence. Everything in §4 with a 1/1 instance count is a singleton
 manager wired by hand in one scene; changing its public surface means re-wiring
 the Inspector.
+
+---
+
+## 11. Shared code added on `feature/audio`
+
+Two new folders under `Core/`, both additive. Nothing that already plays audio changed,
+and nothing here is wired into a scene yet.
+
+### `Core/Audio/**`
+
+| File | Lines | What |
+|---|---:|---|
+| `SoundPlayer.cs` | ~950 | The component. Plays a sound against any AudioSource, one-shot or looping, with optional pitch and volume variation and mixer routing the caller can override at runtime. |
+| `SoundSettings.cs` | ~250 | Everything that describes a sound. Held inline by `SoundPlayer` or inside a `SoundDefinition`. |
+| `SoundDefinition.cs` | ~50 | ScriptableObject preset. `Assets > Create > Audio > Sound`. |
+| `SoundShaper.cs` | ~160 | Picks the next pitch or volume: none, random, or stepping with loop/ping-pong wrap. |
+| `PitchScale.cs` | ~160 | Scale step to pitch, `2^(n/12)`. Pure — no Unity state, no component. |
+| `MixerVolume.cs` | ~160 | Linear volume to decibels and back, plus a guarded `SetFloat`. |
+| `SoundEnums.cs` | ~130 | The enums. |
+
+### `Core/Pooling/**`
+
+| File | Lines | What |
+|---|---:|---|
+| `ObjectPool.cs` | ~390 | String-keyed pool. `Get<T>(key)`, `Release(key, item)`, `Prewarm`, `Clear`, counts. General purpose — not audio-specific. |
+| `PoolHost.cs` | ~55 | MonoBehaviour that owns one `ObjectPool` and parents pooled GameObjects. |
+| `PoolKeys.cs` | ~30 | The keys, as `const string`. |
+
+### Invariants this layout protects
+
+- **Pitch is per-voice, not per-source.** Setting pitch on a shared AudioSource re-pitches
+  every one-shot still ringing out on it. Each overlapping shot borrows its own voice from
+  the pool, configured from the template source — mixer group, spatial blend, distances and
+  rolloff copied across, so a pooled 3D sound stays where it was.
+- **No mutable state in a static class.** `ObjectPool` is an ordinary object that `PoolHost`
+  owns. `PitchScale`, `MixerVolume`, `PoolKeys` are static and hold nothing that can change.
+- **No progression state on a ScriptableObject.** A `SoundDefinition` can be shared by twenty
+  components, so a cursor stored on the asset would be shared with them. `SoundShaper` is
+  pure; `SoundPlayer` owns the cursor.
+- **Nothing is pulled.** No `FindObjectOfType`, no singleton. The AudioSource and the
+  `PoolHost` are assigned in the Inspector or handed in at the call site, the same way
+  `Card` is given its `ICardClickHandler`.
+
+### Enum ordering
+
+`SoundVariationMode`, `SoundStepWrap`, `SoundPitchUnit`, `MusicalScale`, `SoundClipPickMode`,
+`SoundPlaybackMode` and `SoundMixerRouting` are serialized as integers, exactly like
+`EncounterStage`. **Do not reorder them.** Add new members at the end.
+
+### The Crybt audio layer
+
+Added on top of `Core/Audio`, under `Assets/Scripts/CrybtManager/Audio/`.
+
+| File | What |
+|---|---|
+| `CrybtSound.cs` | 23 named moments — card deal, monster reveal, score tick, action refused. Serialized as ints inside the table; **do not reorder**. |
+| `CrybtSoundTable.cs` | ScriptableObject mapping `CrybtSound` to `SoundDefinition`. Shipped copy at `Assets/Resources/Crybt/CrybtSounds.asset`. |
+| `CrybtAudio.cs` | The Crybt's one audio entry point. Builds a `SoundPlayer` per sound at runtime, all sharing one `PoolHost`. |
+| `Editor/CrybtAudioGenerator.cs` | `Tools > Crybt > Generate Crybt Sound Assets` builds the definitions and the table, leaving existing assets alone. `… > Rebuild Crybt Sound Assets (Overwrite)` re-applies the tuning to existing assets, discarding hand edits. |
+| `Editor/CrybtSoundEntryDrawer.cs` | Draws a table row as "Card Hover" with its asset on the same line, instead of "Element 0". **Permanent** — unlike the rest of that folder, it is not a one-shot migration to be deleted. |
+
+Unity's built-in "use a field for the array element label" feature only reads a serialized
+**string** field, so it does not apply to an enum-keyed row — hence the drawer rather than a
+field rename, which would also have orphaned the enum value in every authored row.
+
+`CrybtManager` gained one serialized `CrybtAudio` field and ~30 one-line `PlaySound(...)`
+calls. Every one goes through a private null-checked helper, so removing `CrybtAudio`
+from the scene silences the game without touching the state machine. `Card` gained
+`BindAudio(CrybtAudio)` and plays a hover tick — pushed by the manager, so none of the
+53 card prefabs changed.
+
+`ConfirmCombination` (the sword button) plays **only** the score tick — it adds to the
+tally, it does not swing at anything. `PlayerAttack` sits in `ResolveEncounter`, the moment
+the built-up score is actually spent on the Monster, immediately before the defeated/hurt
+outcome sound.
+
+The score tick is the one sound that climbs. It starts at pitch 0.75 — a fourth below the
+recorded tick — and walks one note of the **major scale** per scoring combination, over
+fifteen notes and exactly two octaves, then **holds** on the top note rather than looping.
+Two octaves above 0.75 is exactly 3.0, Unity's pitch ceiling, so raising that base pitch
+would squash the top of the run.
+
+It resets only when a new hand is dealt (`CrybtManager.StartEncounter`). There is
+deliberately no idle timeout — a player who stops to think mid-hand should not lose their
+place in the run.
+
+Note this is the major *scale*, not the key of C: pitching a recorded sample puts the root
+wherever the clip itself sits, so only a tick recorded at C would make it literally C major.
+
+`SoundStepWrap.Clamp` was added for this. Unlike `Loop`, it includes its top endpoint —
+which is why the range is 0 to 14 rather than 0 to 15.
+
+### Still outstanding
+
+- **Run `Tools > Crybt > Generate Crybt Sound Assets` once.** Until it is run there is no
+  sound table, and `CrybtAudio` warns and stays silent.
+- **Add a `CrybtAudio` component** to the object carrying `CrybtManager` in `Crybt.unity`,
+  then save the scene. That is the only scene edit needed — everything else self-wires.
+- `Crybt.unity` still has zero authored AudioSources; every voice is pooled at runtime.
+- Nothing in the overworld has been re-routed to the new `Music`/`SFX`/`UI` mixer groups.

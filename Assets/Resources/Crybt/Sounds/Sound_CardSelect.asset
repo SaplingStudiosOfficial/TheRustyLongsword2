@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b2701dfea29946e439885d78119ae312, type: 3}
+  m_Name: Sound_CardSelect
+  m_EditorClassIdentifier: 
+  description: Card added to the combination. Pitched slightly up against the deselect.
+  settings:
+    clips:
+    - {fileID: 8300000, guid: 1c7bed007424ca24aa1c12f26b190c49, type: 3}
+    pickMode: 2
+    playback: 0
+    ignoreListenerPause: 0
+    volume: 0.7
+    volumeShaper:
+      mode: 0
+      low: 1
+      high: 1
+      step: 1
+      wrap: 0
+    pitch: 1
+    pitchUnit: 0
+    scale: 0
+    pitchShaper:
+      mode: 1
+      low: 1
+      high: 1.08
+      step: 1
+      wrap: 0
+    progressionResetSeconds: 0
+    routing: 1
+    outputGroup: {fileID: -1091903595848886032, guid: 845cde8cb90be474a9a061542ff6827f, type: 2}
+    fadeInSeconds: 0
+    fadeOutSeconds: 0
